@@ -39,24 +39,24 @@ pip install -r requirements.txt
 sudo ./run_pgvector.sh
 ```
 
-### 5. Run Flask RAG App
+### 5. Set .env and .flaskenv
+
+```shell
+cp env-example .env
+cp flaskenv-example .flaskenv
+```
+and add details configuration.
+
+### 6. Schema for testing endpoints 
+- Import "postman-damath-collection.json" to your Postman Application
+
+### 7. Run Flask RAG App
 
 ```shell
 flask run
 ```
 
-- Open [localhost:5000] to view your local RAG app.
-- Add websites or PDFs and ask question.
-- Example PDF: https://phi-public.s3.amazonaws.com/recipes/ThaiRecipes.pdf
-- Example Websites:
-  - https://techcrunch.com/2024/04/18/meta-releases-llama-3-claims-its-among-the-best-open-models-available/?guccounter=1
-  - https://www.theverge.com/2024/4/23/24137534/microsoft-phi-3-launch-small-ai-language-model
-
-
-- Schema for testing endpoints - postman-damath-collection.json
-
-
-### 6. Debugging Commands
+### 8. Debugging Commands
 
 ```shell
 DOCKER
@@ -64,6 +64,10 @@ sudo docker stop "name-of-img"
 sudo docker rm "name-of-img"
 sudo docker stats "name-of-img"
 sudo docker exec -it "name-of-img" /bin/bash
-
-
 ```
+
+- Add websites or PDFs and ask question.
+- Example PDF: https://phi-public.s3.amazonaws.com/recipes/ThaiRecipes.pdf
+- Example Websites:
+  - https://techcrunch.com/2024/04/18/meta-releases-llama-3-claims-its-among-the-best-open-models-available/?guccounter=1
+  - https://www.theverge.com/2024/4/23/24137534/microsoft-phi-3-launch-small-ai-language-model

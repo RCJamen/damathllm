@@ -33,7 +33,7 @@ def get_rag_assistant(
             embedder=embedder,
         ),
         # 3 references are added to the prompt
-        num_documents=3,
+        num_documents=1,
     )
 
     return Assistant(
@@ -43,11 +43,12 @@ def get_rag_assistant(
         llm=Ollama(model=llm_model),
         storage=PgAssistantStorage(table_name="local_rag_assistant", db_url=db_url),
         knowledge_base=knowledge,
-        description="You are an AI called 'RAGit' and your task is to answer questions using the provided information",
+        description="You are an AI called 'Dammy' and your task is to answer questions using the provided information",
         instructions=[
             "When a user asks a question, you will be provided with information about the question.",
             "Carefully read this information and provide a clear and concise answer to the user.",
             "Do not use phrases like 'based on my knowledge' or 'depending on the information'.",
+            "Answer in 1 paragraph only.",
         ],
         # Uncomment this setting adds chat history to the messages
         # add_chat_history_to_messages=True,

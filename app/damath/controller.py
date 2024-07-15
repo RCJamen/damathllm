@@ -24,7 +24,7 @@ def initialize():
     rag_assistant = get_rag_assistant(llm_model=llm_model, embeddings_model=embeddings_model)
 
     if rag_assistant:
-        pdf_file_path = os.path.join(os.path.dirname(__file__), 'guide_to_latex.pdf')
+        pdf_file_path = os.path.join(os.path.dirname(__file__), 'Damath_Data.pdf')
         print(f"Checking for PDF file at: {pdf_file_path}")
 
         if os.path.exists(pdf_file_path):
