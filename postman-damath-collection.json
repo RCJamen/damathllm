@@ -1,9 +1,9 @@
 {
 	"info": {
-		"_postman_id": "c71f2d41-7041-4914-9052-80902c0e34d9",
+		"_postman_id": "5244db29-0a59-41b2-9c28-4fb9a04d2c42",
 		"name": "Damath Thesis",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "31222484"
+		"_exporter_id": "31675799"
 	},
 	"item": [
 		{
@@ -51,8 +51,53 @@
 		{
 			"name": "Chat",
 			"request": {
-				"method": "GET",
-				"header": []
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"message\": \"Tell me about text decorations\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/chat",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"chat"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Clear Knowledge Base",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "http://127.0.0.1:5000/clear_knowledge_base",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"clear_knowledge_base"
+					]
+				}
 			},
 			"response": []
 		}
