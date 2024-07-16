@@ -1,0 +1,15 @@
+{
+  "name": "damathllm",
+  "version": "1.0.0",
+  "description": "### 1. [Install](https://github.com/ollama/ollama?tab=readme-ov-file#macos) ollama and pull models",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "promptfoo": "^0.71.1"
+  }
+}
