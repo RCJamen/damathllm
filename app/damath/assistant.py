@@ -19,12 +19,12 @@ def get_rag_assistant(
     """Get a Local RAG Assistant."""
 
     # Define the embedder based on the embeddings model
-    embedder = OllamaEmbedder(model=embeddings_model, dimensions=4096)
+    embedder = OllamaEmbedder(model=embeddings_model, dimensions=768) 
     embeddings_model_clean = embeddings_model.replace("-", "_")
     if embeddings_model == "nomic-embed-text":
         embedder = OllamaEmbedder(model=embeddings_model, dimensions=768)
-    elif embeddings_model == "phi3":
-        embedder = OllamaEmbedder(model=embeddings_model, dimensions=3072)
+    # elif embeddings_model == "phi3":
+    #     embedder = OllamaEmbedder(model=embeddings_model, dimensions=3072)
     # Define the knowledge base
     knowledge = AssistantKnowledge(
         vector_db=PgVector2(
@@ -46,7 +46,7 @@ def get_rag_assistant(
         description="You are an AI called 'Dammy' and your task is to answer questions using the provided information",
         instructions=[
             "When a user asks a question, you will be provided with information about the question.",
-            "Carefully read this information and provide a clear and concise answer to the user.",
+            "Carefully read this information and provide a clear, concise and complete answer to the user.",
             "Do not use phrases like 'based on my knowledge' or 'depending on the information'.",
             "Answer in 1 paragraph only.",
         ],

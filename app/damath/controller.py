@@ -88,19 +88,3 @@ def hello(name=None):
 #         return jsonify({"status": "URL added successfully"}), 200
 #     else:
 #         return jsonify({"error": "Failed to read URL"}), 500
-
-
-# @damath.route('/add_pdf', methods=['POST'])
-# def add_pdf():
-#     global rag_assistant
-#     if not rag_assistant:
-#         return jsonify({"error": "Assistant not initialized"}), 400
-
-#     file = request.files['file']
-#     reader = PDFReader()
-#     rag_documents = reader.read(file)
-#     if rag_documents:
-#         rag_assistant.knowledge_base.load_documents(rag_documents, upsert=True)
-#         return jsonify({"status": "PDF added successfully"}), 200
-#     else:
-#         return jsonify({"error": "Failed to read PDF"}), 500
