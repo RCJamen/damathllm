@@ -5,7 +5,7 @@ from phi.knowledge import AssistantKnowledge
 from phi.llm.ollama import Ollama
 from phi.embedder.ollama import OllamaEmbedder
 from phi.vectordb.pgvector import PgVector2
-from phi.storage.assistant.postgres import PgAssistantStorage
+# from phi.storage.assistant.postgres import PgAssistantStorage
 
 db_url = "postgresql+psycopg://ai:ai@localhost:5532/ai"
 
@@ -19,7 +19,7 @@ def get_rag_assistant(
     """Get a Local RAG Assistant."""
 
     # Define the embedder based on the embeddings model
-    embedder = OllamaEmbedder(model=embeddings_model, dimensions=768) 
+    embedder = OllamaEmbedder(model=embeddings_model, dimensions=768)
     embeddings_model_clean = embeddings_model.replace("-", "_")
     if embeddings_model == "nomic-embed-text":
         embedder = OllamaEmbedder(model=embeddings_model, dimensions=768)
@@ -41,7 +41,7 @@ def get_rag_assistant(
         run_id=run_id,
         user_id=user_id,
         llm=Ollama(model=llm_model),
-        storage=PgAssistantStorage(table_name="local_rag_assistant", db_url=db_url),
+        # storage=PgAssistantStorage(table_name="local_rag_assistant", db_url=db_url),
         knowledge_base=knowledge,
         description="You are an AI called 'Dammy' a Damath game enthusiast and your task is to answer questions using the provided information only.",
         instructions=[
