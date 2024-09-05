@@ -4,7 +4,7 @@ from phi.assistant import Assistant
 from phi.document import Document
 from phi.document.reader.pdf import PDFReader
 from phi.document.reader.website import WebsiteReader
-from app.damath.assistant import get_rag_assistant
+from app.damath.chatassistant import get_chat_rag_assistant
 import os
 import app.models as damathModel
 from . import damath
@@ -13,15 +13,15 @@ rag_assistant = None
 llm_model = None
 embeddings_model = None
 
-@damath.route('/initialize', methods=['POST'])
+@damath.route('/initialize_chat', methods=['POST'])
 def initialize():
     global rag_assistant, llm_model, embeddings_model
 
     data = request.json
-    llm_model = data.get("llm_model", "llama3")
+    llm_model = data.get("llm_model", "llama3.1")
     embeddings_model = data.get("embeddings_model", "nomic-embed-text")
 
-    rag_assistant = get_rag_assistant(llm_model=llm_model, embeddings_model=embeddings_model)
+    rag_assistant = get_chat_rag_assistant(llm_model=llm_model, embeddings_model=embeddings_model)
 
     if rag_assistant:
         pdf_file_path = os.path.join(os.path.dirname(__file__), 'Damath_Data.pdf')

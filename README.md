@@ -7,7 +7,7 @@ Pull the LLM you'd like to use:
 ```shell
 ollama pull phi3
 
-ollama pull llama3
+ollama pull llama3.1
 ```
 
 Pull the Embeddings model:
@@ -71,3 +71,13 @@ sudo docker exec -it "name-of-img" /bin/bash
 - Example Websites:
   - https://techcrunch.com/2024/04/18/meta-releases-llama-3-claims-its-among-the-best-open-models-available/?guccounter=1
   - https://www.theverge.com/2024/4/23/24137534/microsoft-phi-3-launch-small-ai-language-model
+
+
+<!-- 
+  steps to run:
+
+start pgvector docker: sudo docker start pgvector
+next: flask run before postman initialize
+next: intialize postman
+next: start kubi -->
+  
