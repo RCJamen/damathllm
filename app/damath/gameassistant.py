@@ -7,7 +7,6 @@ from phi.embedder.ollama import OllamaEmbedder
 from phi.vectordb.pgvector import PgVector2
 from phi.storage.assistant.postgres import PgAssistantStorage
 
-
 db_url = "postgresql+psycopg://ai:ai@localhost:5532/ai"
 
 def get_game_rag_assistant(
@@ -17,7 +16,6 @@ def get_game_rag_assistant(
     run_id: Optional[str] = None,
     debug_mode: bool = True,
 ) -> Assistant:
-    """Get a Local RAG Assistant."""
 
     embedder = OllamaEmbedder(model=embeddings_model, dimensions=768)
     embeddings_model_clean = embeddings_model.replace("-", "_")
@@ -29,7 +27,6 @@ def get_game_rag_assistant(
             collection=f"local_rag_game_documents_{embeddings_model_clean}", 
             embedder=embedder,
         ),
-        # 2 Maximum Game Documents, Mechanics and Gameplay Manipulation
         num_documents=2,
     )
     storage = PgAssistantStorage(
@@ -66,5 +63,4 @@ def get_game_rag_assistant(
         add_chat_history_to_messages=True,
         add_datetime_to_instructions=True,
         debug_mode=debug_mode,
-
     )

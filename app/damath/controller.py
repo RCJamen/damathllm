@@ -1,8 +1,4 @@
 from flask import Flask, request, jsonify, session
-# from flask_wtf.csrf import CSRFProtect, CSRFError
-# from phi.assistant import Assistant
-# from phi.document import Document
-# from phi.document.reader.website import WebsiteReader
 from phi.document.reader.pdf import PDFReader
 from phi.utils.log import logger
 from app.damath.chatassistant import get_chat_rag_assistant
@@ -11,22 +7,26 @@ import os
 import uuid
 from . import damath
 
+# Code Documentation
+# Variables:
+# llm_model 
+# embeddings_model
+# chat_assistant(llm-model, embedding model)
+# game_assistant(llm-model, embedding model)
+
+
 game_assistant = None
-rag_assistant = None
-llm_model = None
-embeddings_model = None
+chat_assistant = None
 
 @damath.route('/initialize_chat', methods=['POST'])
 def initialize():
-    global rag_assistant, llm_model, embeddings_model
-
+    global chat_assistant
     data = request.json
-    llm_model = data.get("llm_model", "llama3.1")
-    embeddings_model = data.get("embeddings_model", "nomic-embed-text")
-
-    rag_assistant = get_chat_rag_assistant(llm_model=llm_model, embeddings_model=embeddings_model)
-
-    if rag_assistant:
+    session['llm_model'] = data.get("llm_model", "llama3.1")
+    session['embeddings_model'] = data.get("embeddings_model", "nomic-embed-text")
+    chat_assistant = get_chat_rag_assistant(llm_model=session['llm_model'], embeddings_model=session['embeddings_model'])
+    print(chat_assistant)
+    if chat_assistant:
         pdf_file_path = os.path.join(os.path.dirname(__file__), 'Damath_Data.pdf')
         print(f"Checking for PDF file at: {pdf_file_path}")
 
@@ -35,7 +35,7 @@ def initialize():
             with open(pdf_file_path, 'rb') as file:
                 rag_documents = reader.read(file)
                 if rag_documents:
-                    rag_assistant.knowledge_base.load_documents(rag_documents, upsert=True)
+                    chat_assistant.knowledge_base.load_documents(rag_documents, upsert=True)
                     return jsonify({"status": "Assistant initialized and PDF added successfully"}), 200
                 else:
                     return jsonify({"error": "Failed to read PDF"}), 500
@@ -44,33 +44,35 @@ def initialize():
     else:
         return jsonify({"error": "Failed to initialize assistant"}), 500
 
+
 @damath.route('/chat', methods=['POST'])
 def chat():
-    global rag_assistant
-    if not rag_assistant:
+    global chat_assistant 
+    if not chat_assistant:
         return jsonify({"error": "Assistant not initialized"}), 400
 
     data = request.json
     user_message = data.get("message", "")
 
     response = ""
-    for delta in rag_assistant.run(user_message):
+    for delta in chat_assistant.run(user_message):
         response += delta
 
     return jsonify({"response": response}), 200
 
+
 @damath.route('/clear_knowledge_base', methods=['POST'])
 def clear_knowledge_base():
-    global rag_assistant
-    if not rag_assistant or not rag_assistant.knowledge_base or not rag_assistant.knowledge_base.vector_db:
+    global chat_assistant
+    if not chat_assistant or not chat_assistant.knowledge_base or not chat_assistant.knowledge_base.vector_db:
         return jsonify({"error": "Assistant not initialized or knowledge base not found"}), 400
 
-    rag_assistant.knowledge_base.vector_db.clear()
+    chat_assistant.knowledge_base.vector_db.clear()
+
     return jsonify({"status": "Knowledge base cleared"}), 200
 
 
 # Game Assistant Initialization
-
 def initialize_assistant(llm_model, embeddings_model):
     global game_assistant
     game_assistant = get_game_rag_assistant(llm_model=llm_model, embeddings_model=embeddings_model)
