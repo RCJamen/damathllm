@@ -5,7 +5,7 @@ docker run -d \
   -e PGDATA=/var/lib/postgresql/data/pgdata \
   -v pgvolume:/var/lib/postgresql/data \
   -p 5532:5432 \
-  -m 8g \
-  --memory-swap 8g \
+  -m 16g \
+  --memory-swap 16g \
   --name pgvector \
   phidata/pgvector:16
