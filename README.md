@@ -27,6 +27,7 @@ source .venv/bin/activate
 
 ```shell
 pip install -r requirements.txt
+npm install -g promptfoo
 ```
 
 ### 4. Run PgVector

@@ -10,37 +10,27 @@ from phi.storage.assistant.postgres import PgAssistantStorage
 db_url = "postgresql+psycopg://ai:ai@localhost:5532/ai"
 
 def get_game_rag_assistant(
-    llm_model: str = "llama3.1",
-    embeddings_model: str = "nomic-embed-text",
+    llm_model: Optional[str] = None,
+    embeddings_model: Optional[str] = None,
     user_id: Optional[str] = None,
     run_id: Optional[str] = None,
     debug_mode: bool = True,
 ) -> Assistant:
 
-    embedder = OllamaEmbedder(model=embeddings_model, dimensions=768)
-    embeddings_model_clean = embeddings_model.replace("-", "_")
-    if embeddings_model == "nomic-embed-text":
-        embedder = OllamaEmbedder(model=embeddings_model, dimensions=768)
-    knowledge = AssistantKnowledge(
-        vector_db=PgVector2(
-            db_url=db_url,
-            collection=f"local_rag_game_documents_{embeddings_model_clean}", 
-            embedder=embedder,
-        ),
-        num_documents=2,
-    )
-    storage = PgAssistantStorage(
-        table_name="assistant_runs",
-        db_url=db_url,
-    )
-
     return Assistant(
-        name="local_rag_assistant",
+        name="auto_rag_game_assistant",
         run_id=run_id,
         user_id=user_id,
-        llm=Ollama(model=llm_model),
-        storage=storage,
-        knowledge_base=knowledge,
+        llm=Ollama(model="llama3.1"),
+        storage=PgAssistantStorage(table_name="auto_rag_game_assistant_storage", db_url=db_url),
+        knowledge_base=AssistantKnowledge(
+            vector_db=PgVector2(
+                db_url=db_url,
+                collection="auto_rag_documents_llama3.1_ollama",
+                embedder=OllamaEmbedder(model="nomic-embed-text", dimensions=768),
+            ),
+            # 2 reference are added to the prompt
+            num_documents=2,
         description="You are an AI called 'Dammy' a Damath game enthusiast and your task is to answer questions using the provided information only.",
         instructions=[
             "When a user asks a question, you will be provided with information about the question.",
@@ -52,15 +42,18 @@ def get_game_rag_assistant(
             "Focus on the following keywords: 'game mechanics', 'dama chip', 'moving chips', 'capturing chips', 'scoring', 'concluding the game', 'diagonal movement', 'touch move', '60 seconds per turn', 'forward slide', 'backward slide', 'doubling the score', 'quadrupling the score', and 'final score'.",
             "Answer in 1 paragraph only.",
         ],
-        show_tool_calls=True,
-        # This setting gives the LLM a tool to search the knowledge base for information
+        # Show tool calls in the chat
+        # show_tool_calls=True,
+        # This setting gives the LLM a tool to search for information
         search_knowledge=True,
         # This setting gives the LLM a tool to get chat history
         read_chat_history=True,
+        # tools=[DuckDuckGo()],
         # This setting tells the LLM to format messages in markdown
         markdown=True,
         # Adds chat history to messages
-        add_chat_history_to_messages=True,
+        # add_chat_history_to_messages=True,
         add_datetime_to_instructions=True,
         debug_mode=debug_mode,
-    )
+        )
+)

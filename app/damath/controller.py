@@ -75,24 +75,30 @@ def clear_knowledge_base():
 # Game Assistant Initialization
 def initialize_assistant(llm_model, embeddings_model):
     global game_assistant
-    game_assistant = get_game_rag_assistant(llm_model=llm_model, embeddings_model=embeddings_model)
-    return game_assistant
 
 @damath.route('/initialize_game', methods=['POST'])
 def initialize_game():
     global game_assistant
+    session["game_assistant_run_id"] = None
+
+    if "file_uploader_key" in session:
+        session["file_uploader_key"] += 1
 
     data = request.json
-    llm_model = data.get("llm_model", "llama3.1")
-    embeddings_model = data.get("embeddings_model", "nomic-embed-text")
+    session['llm_model'] = data.get("llm_model", "llama3.1")
+    session['embeddings_model'] = data.get("embeddings_model", "nomic-embed-text")
+    game_assistant = get_game_rag_assistant(llm_model=session['llm_model'], embeddings_model=session['embeddings_model'])
 
-    initialize_assistant(llm_model, embeddings_model)
-    session['llm_model'] = llm_model
-    session['embeddings_model'] = embeddings_model
-    session['auto_rag_assistant_run_id'] = str(uuid.uuid4())
+    try:
+        session["game_assistant_run_id"] = game_assistant.create_run()
+    except Exception:
+        print("Could not create assistant, is the database running?")
+        return
+
+    print(game_assistant)
+    print(session["game_assistant_run_id"])
+
     #FOR THE MEAN TIME DAMATH_DATA only, we need GAME MANIPULATION AS WELL. 
-    print(session['auto_rag_assistant_run_id'])
-
     pdf_file_path = os.path.join(os.path.dirname(__file__), 'Damath_Data.pdf') 
     if os.path.exists(pdf_file_path):
         reader = PDFReader()
@@ -106,6 +112,7 @@ def initialize_game():
     else:
         return jsonify({"error": "PDF file not found"}), 500
 
+
 @damath.route('/play_game', methods=['POST'])
 def play_game():
     global game_assistant
@@ -118,6 +125,8 @@ def play_game():
     response = ""
     for delta in game_assistant.run(player_input):
         response += delta
+
+    print(game_assistant)
 
     return jsonify({"response": response}), 200
 
@@ -153,7 +162,7 @@ def load_run():
     if run_id:
         try:
             game_assistant = get_game_rag_assistant(llm_model=session.get('llm_model', 'llama3.1'), run_id=run_id)
-            session['auto_rag_assistant_run_id'] = run_id
+            session['game_assistant_run_id'] = run_id
             return jsonify({"status": f"Loaded run ID {run_id}"}), 200
         except Exception as e:
             return jsonify({"error": str(e)}), 500
@@ -166,7 +175,7 @@ def new_run():
     if game_assistant:
         try:
             initialize_assistant(session.get('llm_model', 'llama3.1'), session.get('embeddings_model', 'nomic-embed-text'))
-            session['auto_rag_assistant_run_id'] = str(uuid.uuid4())
+            session['game_assistant_run_id'] = str(uuid.uuid4())
             return jsonify({"status": "New run created"}), 200
         except Exception as e:
             return jsonify({"error": str(e)}), 500
