@@ -9,7 +9,7 @@ from . import damath
 
 # Code Documentation
 # Variables:
-# llm_model 
+# llm_model
 # embeddings_model
 # chat_assistant(llm-model, embedding model)
 # game_assistant(llm-model, embedding model)
@@ -47,7 +47,7 @@ def initialize():
 
 @damath.route('/chat', methods=['POST'])
 def chat():
-    global chat_assistant 
+    global chat_assistant
     if not chat_assistant:
         return jsonify({"error": "Assistant not initialized"}), 400
 
@@ -79,38 +79,32 @@ def initialize_assistant(llm_model, embeddings_model):
 @damath.route('/initialize_game', methods=['POST'])
 def initialize_game():
     global game_assistant
-    session["game_assistant_run_id"] = None
-
-    if "file_uploader_key" in session:
-        session["file_uploader_key"] += 1
 
     data = request.json
-    session['llm_model'] = data.get("llm_model", "llama3.1")
-    session['embeddings_model'] = data.get("embeddings_model", "nomic-embed-text")
-    game_assistant = get_game_rag_assistant(llm_model=session['llm_model'], embeddings_model=session['embeddings_model'])
-
-    try:
-        session["game_assistant_run_id"] = game_assistant.create_run()
-    except Exception:
-        print("Could not create assistant, is the database running?")
-        return
-
+    game_assistant = get_game_rag_assistant(
+        llm_model=data.get("llm_model", "llama3.1"),
+        embeddings_model=data.get("embeddings_model", "nomic-embed-text"),
+    )
+    session['run_id'] = game_assistant.run_id
     print(game_assistant)
-    print(session["game_assistant_run_id"])
+    print(session['run_id'])
 
-    #FOR THE MEAN TIME DAMATH_DATA only, we need GAME MANIPULATION AS WELL. 
-    pdf_file_path = os.path.join(os.path.dirname(__file__), 'Damath_Data.pdf') 
-    if os.path.exists(pdf_file_path):
-        reader = PDFReader()
-        with open(pdf_file_path, 'rb') as file:
-            game_documents = reader.read(file)
-            if game_documents:
-                game_assistant.knowledge_base.load_documents(game_documents, upsert=True)
-                return jsonify({"status": "Game assistant initialized and PDF added successfully"}), 200
-            else:
-                return jsonify({"error": "Failed to read PDF"}), 500
-    else:
-        return jsonify({"error": "PDF file not found"}), 500
+    pdf_files = ['Damath_Data.pdf', 'Damath_Game_Data.pdf']
+    reader = PDFReader()
+    for pdf_file in pdf_files:
+        pdf_file_path = os.path.join(os.path.dirname(__file__), pdf_file)
+        print(f"Checking for PDF file at: {pdf_file_path}")
+        if os.path.exists(pdf_file_path):
+            with open(pdf_file_path, 'rb') as file:
+                rag_documents = reader.read(file)
+                if rag_documents:
+                    game_assistant.knowledge_base.load_documents(rag_documents, upsert=True)
+                else:
+                    return jsonify({"error": f"Failed to read {pdf_file}"}), 500
+        else:
+            return jsonify({"error": f"PDF file {pdf_file} not found"}), 500
+    print(game_assistant)
+    return jsonify({"status": "Assistant initialized and PDFs added successfully"}), 200
 
 
 @damath.route('/play_game', methods=['POST'])
@@ -120,16 +114,30 @@ def play_game():
         return jsonify({"error": "Game assistant not initialized"}), 400
 
     data = request.json
-    player_input = data.get("input", "")
+    player_input = data.get("message", "")
 
-    response = ""
-    for delta in game_assistant.run(player_input):
-        response += delta
+    try:
+        response = ""
+        for delta in game_assistant.run(player_input):
+            response += delta
+        print(game_assistant)
+        return jsonify({"response": response}), 200
+    except Exception as e:
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
-    print(game_assistant)
 
-    return jsonify({"response": response}), 200
+@damath.route('/print_chat_history', methods=['GET'])
+def print_chat_history():
+    global game_assistant
+    if not game_assistant or not game_assistant.memory:
+        return jsonify({"error": "Game assistant not initialized or memory not found"}), 400
 
+    chat_history = game_assistant.memory.chat_history
+    formatted_history = []
+    for message in chat_history:
+        formatted_history.append(f"{message.role.upper()}: {message.content}")
+
+    return jsonify({"chat_history": formatted_history}), 200
 
 @damath.route('/clear_game_knowledge_base', methods=['POST'])
 def clear_game_knowledge_base():
@@ -151,36 +159,24 @@ def get_run_ids():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@damath.route('/load_run', methods=['POST'])
-def load_run():
-    global game_assistant
-    if not game_assistant or not game_assistant.storage:
-        return jsonify({"error": "Game assistant not initialized or storage not found"}), 400
+# @damath.route('/load_run', methods=['POST'])
+# def load_run():
+#     global game_assistant
+#     if not game_assistant or not game_assistant.storage:
+#         return jsonify({"error": "Game assistant not initialized or storage not found"}), 400
 
-    data = request.json
-    run_id = data.get("run_id", "")
-    if run_id:
-        try:
-            game_assistant = get_game_rag_assistant(llm_model=session.get('llm_model', 'llama3.1'), run_id=run_id)
-            session['game_assistant_run_id'] = run_id
-            return jsonify({"status": f"Loaded run ID {run_id}"}), 200
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-    else:
-        return jsonify({"error": "No run ID provided"}), 400
+#     data = request.json
+#     run_id = data.get("run_id", "")
+#     if run_id:
+#         try:
+#             game_assistant = get_game_rag_assistant(llm_model=session.get('llm_model', 'llama3.1'), run_id=run_id)
+#             session['game_assistant_run_id'] = run_id
+#             return jsonify({"status": f"Loaded run ID {run_id}"}), 200
+#         except Exception as e:
+#             return jsonify({"error": str(e)}), 500
+#     else:
+#         return jsonify({"error": "No run ID provided"}), 400
 
-@damath.route('/new_run', methods=['POST'])
-def new_run():
-    global game_assistant
-    if game_assistant:
-        try:
-            initialize_assistant(session.get('llm_model', 'llama3.1'), session.get('embeddings_model', 'nomic-embed-text'))
-            session['game_assistant_run_id'] = str(uuid.uuid4())
-            return jsonify({"status": "New run created"}), 200
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-    else:
-        return jsonify({"error": "Game assistant not initialized"}), 400
 
 
 # @damath.route('/hello/')
