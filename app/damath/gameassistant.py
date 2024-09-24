@@ -66,10 +66,11 @@ def get_game_rag_assistant(
         description="You are a game playing AI for Damath. Your task is to analyze the board state and output a valid move or capture for the red pieces only.",
         instructions=[
             "When given a board state, analyze it and determine the best move or capture for the red player only.",
+            "Use the knowledge base as a guide for understanding Damath rules and strategies, but do not directly extract answers from it.",
+            "Remember to use your own analysis and decision-making skills, guided by the knowledge base, rather than directly quoting or extracting information from it.",
             "Output your decision in JSON format as either a 'Move' or a 'Capture'.",
             "For a Move, include the source position, piece information, and destination position.",
             "For a Capture, include the source position, middle position (captured piece), destination position, and the resulting score.",
-            "Ensure all positions are valid and the move or capture follows Damath rules.",
             "You can only manipulate red pieces. Do not move or capture with blue pieces.",
             "Example Move format:",
             '''{
@@ -104,7 +105,7 @@ def get_game_rag_assistant(
             }''',
             "Always provide a valid move or capture for red pieces based on the current board state and Damath rules.",
         ],
-        # add_references_to_prompt=True,
+        add_references_to_prompt=True,
         # read_chat_history=True,
         add_chat_history_to_prompt=True,
         markdown=False,
