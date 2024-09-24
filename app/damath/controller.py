@@ -1,10 +1,9 @@
-from flask import Flask, request, jsonify, session
+from flask import request, jsonify, session
 from phi.document.reader.pdf import PDFReader
-from phi.utils.log import logger
 from app.damath.chatassistant import get_chat_rag_assistant
 from app.damath.gameassistant import get_game_rag_assistant
 import os
-import uuid
+import json
 from . import damath
 
 # Code Documentation
@@ -86,8 +85,8 @@ def initialize_game():
         embeddings_model=data.get("embeddings_model", "nomic-embed-text"),
     )
     session['run_id'] = game_assistant.run_id
-    print(game_assistant)
-    print(session['run_id'])
+    # print(game_assistant)
+    # print(session['run_id'])
 
     pdf_files = ['Damath_Data.pdf', 'Damath_Game_Data.pdf']
     reader = PDFReader()
@@ -103,7 +102,7 @@ def initialize_game():
                     return jsonify({"error": f"Failed to read {pdf_file}"}), 500
         else:
             return jsonify({"error": f"PDF file {pdf_file} not found"}), 500
-    print(game_assistant)
+    # print(game_assistant)
     return jsonify({"status": "Assistant initialized and PDFs added successfully"}), 200
 
 
@@ -113,15 +112,14 @@ def play_game():
     if not game_assistant:
         return jsonify({"error": "Game assistant not initialized"}), 400
 
-    data = request.json
-    player_input = data.get("message", "")
+    board_state = str(request.json)
 
     try:
-        response = ""
-        for delta in game_assistant.run(player_input):
-            response += delta
-        print(game_assistant)
-        return jsonify({"response": response}), 200
+        board_state_str = str(board_state)
+        response = game_assistant.run(board_state_str)
+        parsed_response = json.loads(response)
+
+        return jsonify(parsed_response), 200
     except Exception as e:
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 

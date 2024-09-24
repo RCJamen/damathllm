@@ -1,4 +1,5 @@
-from typing import Optional
+from typing import Optional, Dict, Any, Union, List
+from pydantic import BaseModel, Field
 
 from phi.assistant import Assistant
 from phi.knowledge import AssistantKnowledge
@@ -8,6 +9,29 @@ from phi.vectordb.pgvector import PgVector2
 from phi.storage.assistant.postgres import PgAssistantStorage
 
 db_url = "postgresql+psycopg://ai:ai@localhost:5532/ai"
+
+class GameAction(BaseModel):
+    class Piece(BaseModel):
+        color: str
+        value: int
+        is_king: bool
+
+    class Position(BaseModel):
+        position: int
+        piece: Optional['GameAction.Piece'] = None
+
+    class Move(BaseModel):
+        source: 'GameAction.Position' = Field(..., description="The starting position of the piece being moved")
+        destination: 'GameAction.Position' = Field(..., description="The ending position of the piece being moved")
+
+    class Capture(BaseModel):
+        source: 'GameAction.Position' = Field(..., description="The starting position of the capturing piece")
+        middle: 'GameAction.Position' = Field(..., description="The position of the piece being captured")
+        destination: 'GameAction.Position' = Field(..., description="The ending position of the capturing piece")
+        score: int = Field(..., description="The score resulting from this capture")
+
+    move: Optional['GameAction.Move']
+    capture: Optional['GameAction.Capture']
 
 def get_game_rag_assistant(
     llm_model: str = "llama3.1",
@@ -39,21 +63,53 @@ def get_game_rag_assistant(
         llm=Ollama(model=llm_model),
         storage=PgAssistantStorage(table_name="auto_rag_game_assistant_storage", db_url=db_url),
         knowledge_base=knowledge,
-        description="You are an AI called 'Dammy' a Damath game enthusiast and your task is to answer questions using the provided information only.",
+        description="You are a game playing AI for Damath. Your task is to analyze the board state and output a valid move or capture for the red pieces only.",
         instructions=[
-            "When a user asks a question, you will be provided with information about the question.",
-            "Carefully read this information and provide a clear, concise and complete answer to the user.",
-            "Do not use phrases like 'based on my knowledge' or 'depending on the information'.",
-            "Do not ask for additional information to better assist. Focus solely on providing details about Damath.",
-            "Do not disclose where your information came from",
-            "Do not answer or engage with any topics that are not related to Damath. If a question is unrelated to Damath, introduce yourself and apologize because you can't answer that.",
-            "Focus on the following keywords: 'game mechanics', 'dama chip', 'moving chips', 'capturing chips', 'scoring', 'concluding the game', 'diagonal movement', 'touch move', '60 seconds per turn', 'forward slide', 'backward slide', 'doubling the score', 'quadrupling the score', and 'final score'.",
-            "Answer in 1 paragraph only.",
+            "When given a board state, analyze it and determine the best move or capture for the red player only.",
+            "Output your decision in JSON format as either a 'Move' or a 'Capture'.",
+            "For a Move, include the source position, piece information, and destination position.",
+            "For a Capture, include the source position, middle position (captured piece), destination position, and the resulting score.",
+            "Ensure all positions are valid and the move or capture follows Damath rules.",
+            "You can only manipulate red pieces. Do not move or capture with blue pieces.",
+            "Example Move format:",
+            '''{
+                "move": {
+                    "source": {
+                        "position": 2,
+                        "piece": {"color": "red", "value": -5, "is_king": false}
+                    },
+                    "destination": {
+                        "position": 4,
+                        "piece": null
+                    }
+                }
+            }''',
+            "Example Capture format:",
+            '''{
+                "capture": {
+                    "source": {
+                        "position": 2,
+                        "piece": {"color": "red", "value": -5, "is_king": false}
+                    },
+                    "middle": {
+                        "position": 11,
+                        "piece": {"color": "blue", "value": 6, "is_king": false}
+                    },
+                    "destination": {
+                        "position": 20,
+                        "piece": null
+                    },
+                    "score": -30
+                }
+            }''',
+            "Always provide a valid move or capture for red pieces based on the current board state and Damath rules.",
         ],
-        add_references_to_prompt=True,
+        # add_references_to_prompt=True,
         # read_chat_history=True,
+        add_chat_history_to_prompt=True,
         markdown=False,
         add_chat_history_to_messages=True,
         add_datetime_to_instructions=True,
         debug_mode=debug_mode,
-        )
+        output_model=GameAction,
+    )
