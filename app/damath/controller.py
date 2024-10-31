@@ -1,7 +1,7 @@
 from flask import request, jsonify, session
 from phi.document.reader.pdf import PDFReader
-from app.damath.chatassistant import get_chat_rag_assistant
-from app.damath.gameassistant import get_game_rag_assistant
+from agent.chatassistant import get_chat_rag_assistant
+from agent.gameassistant import get_game_rag_assistant
 import os
 import json
 from . import damath
