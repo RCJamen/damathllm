@@ -24,7 +24,7 @@ def get_chat_rag_agent(
         embedder = OllamaEmbedder(model=embeddings_model, dimensions=768)
 
     knowledge_base = PDFKnowledgeBase(
-        path="dataset",
+        path="/home/ari/Documents/Thesis/damathWebApp/agent/dataset/GameMechanics.pdf",
         vector_db=PgVector2(
             db_url=db_url,
             collection=f"agent_documents",
@@ -35,7 +35,10 @@ def get_chat_rag_agent(
     )
 
     # Load the knowledge base
-    knowledge_base.load(upsert=True)
+    knowledge_base.load(recreate=True)
+
+
+
 
     storage = PgAgentStorage(table_name="agent_storage", db_url=db_url)
 
@@ -58,7 +61,7 @@ def get_chat_rag_agent(
             "Answer in 1 paragraph only.",
         ],
         add_references_to_prompt=True,
-        # search_knowledge=True,
+        search_knowledge=True,
         # show_tool_calls=True,
         markdown=False,
         add_datetime_to_instructions=True,
