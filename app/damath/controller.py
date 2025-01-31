@@ -12,7 +12,7 @@ chat_agent = None
 def initialize():
     global chat_agent
     data = request.json
-    session['llm_model'] = data.get("llm_model", "llama3.2")
+    session['llm_model'] = data.get("llm_model", "llama3-groq-tool-use:8b")
     session['embeddings_model'] = data.get("embeddings_model", "nomic-embed-text")
     chat_agent = get_chat_rag_agent(llm_model=session['llm_model'], embeddings_model=session['embeddings_model'])
     print(json.dumps(chat_agent.__dict__, indent=4, default=str))
@@ -28,20 +28,17 @@ def chat():
 
     data = request.json
     user_message = data.get("message", "")
-
+    print(user_message)
+    print(type(user_message))
     try:
-        # Ensure no unsupported arguments are passed
-        response = chat_agent.run(message=user_message)
+            response = chat_agent.run(message=user_message)
+            print(response)
     except TypeError as e:
         return jsonify({"error": f"Type error occurred: {str(e)}"}), 500
     except Exception as e:
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
     return jsonify({"response": response.content if hasattr(response, 'content') else response}), 200
-
-
-    # response: RunResponse = chat_agent.run("What is the recipe for chicken curry?")
-    # res = response.content1
 
 @damath.route('/clear_knowledge_base', methods=['POST'])
 def clear_knowledge_base():
