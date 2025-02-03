@@ -17,50 +17,112 @@ from . import damath
 
 db_url = "postgresql+psycopg://ai:ai@localhost:5532/ai"
 
-def board_to_valid_moves(board: str) -> str:
+def board_to_valid_moves(board_str: str) -> str:
     """
     Use this function to return valid moves of red piece in a board list.
 
     Args:
-        board (str): list representation of the board.
+        board_str (str): string list representation of the board.
 
     Returns:
         str: JSON string valid moves of the board by position key pairs.
     """
-    print(board)
-    print(type(board))
-    def replace_piece(match):
-        color, value, is_dama = match.groups()
-        is_dama = is_dama == 'True'  # Convert string to boolean
-        return f"{{'color': '{color}', 'value': {value}, 'is_dama': {is_dama}}}"
+    print("\n", board_str)
+    print(type(board_str))
 
-    board = re.sub(r'Piece\((r|b), (-?\d+), isdama=(True|False)\)', replace_piece, board)
+    transformed_data = (board_str
+        .replace('null', 'None')
+        .replace('false', 'False')
+        .replace('Piece','piece')
+        .replace("[None, '-]", '[None, \'-\']')
+        .replace("[None, -']", '[None, \'-\']')
+    )
 
-    try:
-        board = ast.literal_eval(board)
-        print("Converted successfully to:", type(board))
-    except Exception as e:
-        print("Conversion error:", e)
+    print("\n", transformed_data)
+    print(type(transformed_data))
+
+    def translate(board_str):
+        board_str = board_str.strip('"\'')
+        pattern = r'piece\(([rb]), (-?\d+), isdama=(True|False)\)'
+        def replace_piece(match):
+            color, value, is_dama = match.groups()
+            piece_dict = {
+                "color": color,
+                "value": int(value),
+                "is_dama": is_dama.lower() == 'true'
+            }
+            return str(piece_dict)
+        board_str = re.sub(pattern, replace_piece, board_str)
+        print(board_str)
+        board = eval(board_str)
+        return board
+
+    translated = translate(transformed_data)
+    print("\n", translated)
+    print(type(translated))
+
+    board = translated
 
     valid_moves = {"valid_moves": []}
-
     has_mandatory_capture = False
     mandatory_moves = []
 
-    def check_capture(index, piece):
+    def check_capture(index, piece, visited=None):
+        if visited is None:
+            visited = []
+
         captures = []
-        if piece['color'] == 'r':
-            if (index + 7 < 64 and isinstance(board[index + 7], list) and
-                isinstance(board[index + 7][0], dict) and board[index + 7][0]['color'] == 'b'):
-                if (index + 14 < 64 and isinstance(board[index + 14], list) and
-                    board[index + 14][0] is None):
-                    captures.append(index + 14)
-            if (index + 9 < 64 and isinstance(board[index + 9], list) and
-                isinstance(board[index + 9][0], dict) and board[index + 9][0]['color'] == 'b'):
-                if (index + 18 < 64 and isinstance(board[index + 18], list) and
-                    board[index + 18][0] is None):
-                    captures.append(index + 18)
+        directions = []
+
+        if not piece['is_dama']:
+            if piece['color'] == 'r':
+                directions = [(7, 14), (9, 18)]
+        else:
+            directions = [(7, 14), (9, 18), (-7, -14), (-9, -18)]
+
+        for step, jump in directions:
+            capture_idx = index + step
+            landing_idx = index + jump
+
+            if (0 <= capture_idx < 64 and 0 <= landing_idx < 64 and
+                isinstance(board[capture_idx], list) and
+                isinstance(board[landing_idx], list)):
+
+                captured_piece = board[capture_idx][0]
+                landing_spot = board[landing_idx][0]
+
+                if (captured_piece is not None and
+                    captured_piece['color'] != piece['color'] and
+                    landing_spot is None and
+                    capture_idx not in visited):
+
+                    new_visited = visited + [index, capture_idx]
+                    next_captures = check_capture(landing_idx, piece, new_visited)
+
+                    if next_captures:
+                        for capture_path in next_captures:
+                            captures.append([landing_idx] + capture_path)
+                    else:
+                        captures.append([landing_idx])
+
         return captures
+
+    def get_dama_moves(index, piece):
+        moves = [[], [], [], []]
+        directions = [(-7, 0), (-9, 1), (7, 2), (9, 3)]
+
+        for step, dir_idx in directions:
+            current = index
+            while True:
+                next_pos = current + step
+                if (0 <= next_pos < 64 and
+                    isinstance(board[next_pos], list) and
+                    board[next_pos][0] is None):
+                    moves[dir_idx].append(next_pos)
+                    current = next_pos
+                else:
+                    break
+        return moves
 
     for index, cell in enumerate(board):
         if isinstance(cell, list) and isinstance(cell[0], dict):
@@ -82,39 +144,40 @@ def board_to_valid_moves(board: str) -> str:
             if isinstance(cell, list) and isinstance(cell[0], dict):
                 piece = cell[0]
                 if piece['color'] == 'r':
-                    possible_moves = []
-                    for delta in [7, 9]:
-                        next_pos = index + delta
-                        if (next_pos < 64 and isinstance(board[next_pos], list) and
-                            board[next_pos][0] is None):
-                            possible_moves.append(next_pos)
-                    if possible_moves:
+                    if piece['is_dama']:
+                        dama_moves = get_dama_moves(index, piece)
                         move = {
                             "position": [index, cell[1]],
                             "piece": ["red", piece['value'], piece['is_dama']],
-                            "destination": possible_moves
+                            "destination": dama_moves
                         }
                         valid_moves["valid_moves"].append(move)
+                    else:
+                        possible_moves = []
+                        for delta in [7, 9]:
+                            next_pos = index + delta
+                            if (next_pos < 64 and isinstance(board[next_pos], list) and
+                                board[next_pos][0] is None):
+                                possible_moves.append(next_pos)
+                        if possible_moves:
+                            move = {
+                                "position": [index, cell[1]],
+                                "piece": ["red", piece['value'], piece['is_dama']],
+                                "destination": possible_moves
+                            }
+                            valid_moves["valid_moves"].append(move)
 
     return json.dumps(valid_moves)
 
+
+
 dammy = Agent(
     model=Ollama(id="llama3-groq-tool-use:8b"),
-    # instructions=[
-    #     "When calling board_to_valid_moves tool, the board must match this exact structure:",
-    #     "A list of 64 elements alternating between piece positions and 'X'",
-    #     "Piece positions must be either:",
-    #     "- [Piece(color, value, isdama=Boolean), operation]",
-    #     "  where: color is 'r' or 'b'",
-    #     "         value is an integer",
-    #     "         operation is one of: '*', '/', '+', '-'",
-    #     "- [None, operation]",
-    #     "- 'X' for non-playable squares",
-    #     "Example:",
-    #     '''board_to_valid_moves("[[Piece(r, 2, isdama=False), '*'], 'X', [Piece(r, -5, isdama=False), '/'], 'X', ...]")''',
-    #     "Maintain exact Piece() constructor format and operation symbols.",
-    #     "All 64 positions must be included."
-    # ],
+    instructions=[
+        "For each item in 'valid_moves', output '\"position\" - [destination]'.",
+        "Use the first element of 'position' and keep 'destination' structure intact.",
+        "When passing arguments to board_to_valid_moves, wrap the board_str with double quotes."
+    ],
     tools=[board_to_valid_moves],
     show_tool_calls=True,
     markdown=False,
