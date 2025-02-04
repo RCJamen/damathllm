@@ -32,36 +32,32 @@ def board_to_valid_moves(board_str: str) -> str:
 
     transformed_data = (board_str
         .replace('null', 'None')
+        .replace('true', 'True')
         .replace('false', 'False')
-        .replace('Piece','piece')
-        .replace("[None, '-]", '[None, \'-\']')
-        .replace("[None, -']", '[None, \'-\']')
+        .replace('Piece(r,', "{'color': 'r', 'value':")
+        .replace('Piece(b,', "{'color': 'b', 'value':")
+        .replace(', isdama=True)', ", 'is_dama': True}")
+        .replace(', isdama=False)', ", 'is_dama': False}")
+        .replace("+']", '+]')
+        .replace("'+]", '+]')
+        .replace("+]", "'+']")
+        .replace("-']", '-]')
+        .replace("'-]", '-]')
+        .replace("-]", "'-']")
+        .replace("*']", '*]')
+        .replace("'*]", '*]')
+        .replace("*]", "'*']")
+        .replace("/']", '/]')
+        .replace("'/]", '/]')
+        .replace("/]", "'/']")
     )
 
     print("\n", transformed_data)
     print(type(transformed_data))
 
-    def translate(board_str):
-        board_str = board_str.strip('"\'')
-        pattern = r'piece\(([rb]), (-?\d+), isdama=(True|False)\)'
-        def replace_piece(match):
-            color, value, is_dama = match.groups()
-            piece_dict = {
-                "color": color,
-                "value": int(value),
-                "is_dama": is_dama.lower() == 'true'
-            }
-            return str(piece_dict)
-        board_str = re.sub(pattern, replace_piece, board_str)
-        print(board_str)
-        board = eval(board_str)
-        return board
+    transformed_data = eval(transformed_data)
 
-    translated = translate(transformed_data)
-    print("\n", translated)
-    print(type(translated))
-
-    board = translated
+    board = transformed_data
 
     valid_moves = {"valid_moves": []}
     has_mandatory_capture = False
@@ -109,7 +105,7 @@ def board_to_valid_moves(board_str: str) -> str:
 
     def get_dama_moves(index, piece):
         moves = [[], [], [], []]
-        directions = [(-7, 0), (-9, 1), (7, 2), (9, 3)]
+        directions = [(7, 0), (9, 1), (-9, 2), (-7, 3)]
 
         for step, dir_idx in directions:
             current = index
@@ -189,7 +185,7 @@ def chat():
     data = request.json
     user_message = data.get("message")
     response = dammy.run(user_message)
-    print(response)
+    # print(response)
     return jsonify({"response": response.content}), 200
 
 # @damath.route('/clear_knowledge_base', methods=['POST'])
