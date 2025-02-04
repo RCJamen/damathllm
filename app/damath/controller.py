@@ -70,36 +70,62 @@ def board_to_valid_moves(board_str: str) -> str:
         captures = []
         directions = []
 
-        if not piece['is_dama']:
-            if piece['color'] == 'r':
-                directions = [(7, 14), (9, 18)]
+        if piece['is_dama']:
+            directions = [
+                {"step": 7, "movement": 7},
+                {"step": 9, "movement": 9},
+                {"step": -7, "movement": -7},
+                {"step": -9, "movement": -9}
+            ]
         else:
-            directions = [(7, 14), (9, 18), (-7, -14), (-9, -18)]
+            if piece['color'] == 'r':
+                directions = [
+                    {"step": 7, "movement": 14},
+                    {"step": 9, "movement": 18}
+                ]
 
-        for step, jump in directions:
-            capture_idx = index + step
-            landing_idx = index + jump
+        for direction in directions:
+            current_idx = index
+            step = direction["step"]
 
-            if (0 <= capture_idx < 64 and 0 <= landing_idx < 64 and
-                isinstance(board[capture_idx], list) and
-                isinstance(board[landing_idx], list)):
+            while True:
+                capture_idx = current_idx + step
+                if not (0 <= capture_idx < 64):
+                    break
 
-                captured_piece = board[capture_idx][0]
-                landing_spot = board[landing_idx][0]
-
-                if (captured_piece is not None and
-                    captured_piece['color'] != piece['color'] and
-                    landing_spot is None and
+                if (isinstance(board[capture_idx], list) and
+                    board[capture_idx][0] is not None and
+                    board[capture_idx][0]['color'] != piece['color'] and
                     capture_idx not in visited):
 
-                    new_visited = visited + [index, capture_idx]
-                    next_captures = check_capture(landing_idx, piece, new_visited)
+                    landing_idx = capture_idx + step
+                    landing_spots = []
 
-                    if next_captures:
-                        for capture_path in next_captures:
-                            captures.append([landing_idx] + capture_path)
-                    else:
-                        captures.append([landing_idx])
+                    while 0 <= landing_idx < 64:
+                        if not isinstance(board[landing_idx], list):
+                            break
+                        if board[landing_idx][0] is not None:
+                            break
+                        landing_spots.append(landing_idx)
+                        if not piece['is_dama']:
+                            break
+                        landing_idx += step
+
+                    for landing in landing_spots:
+                        new_visited = visited + [index, capture_idx]
+                        next_captures = check_capture(landing, piece, new_visited)
+
+                        if next_captures:
+                            for capture_path in next_captures:
+                                captures.append([landing] + capture_path)
+                        else:
+                            captures.append([landing])
+
+                if not piece['is_dama']:
+                    break
+                current_idx += step
+                if not (0 <= current_idx < 64):
+                    break
 
         return captures
 
@@ -165,18 +191,19 @@ def board_to_valid_moves(board_str: str) -> str:
 
     return json.dumps(valid_moves)
 
-
-
 dammy = Agent(
     model=Ollama(id="llama3-groq-tool-use:8b"),
     instructions=[
+        "Pass the arguments to board_to_valid_moves, wrap the board_str with double quotes.",
         "For each item in 'valid_moves', output '\"position\" - [destination]'.",
+        "Exanple output:",
+        "   Move from position [11] to [20, 29]",
+        "   Move from position [18] to [[25], [27, 36, 45, 54, 63], [], []]",
         "Use the first element of 'position' and keep 'destination' structure intact.",
-        "When passing arguments to board_to_valid_moves, wrap the board_str with double quotes."
     ],
     tools=[board_to_valid_moves],
     show_tool_calls=True,
-    markdown=False,
+    markdown=True,
     debug_mode=True
 )
 
@@ -185,7 +212,7 @@ def chat():
     data = request.json
     user_message = data.get("message")
     response = dammy.run(user_message)
-    # print(response)
+    print(response)
     return jsonify({"response": response.content}), 200
 
 # @damath.route('/clear_knowledge_base', methods=['POST'])
