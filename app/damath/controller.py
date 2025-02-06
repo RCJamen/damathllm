@@ -1,19 +1,10 @@
 import os
 import json
-import ast
-import re
 from flask import request, jsonify, session
 from typing import (Optional, Dict, List, Union, Any)
-from pydantic import BaseModel, Field
 from agno.agent import Agent
-from agno.storage.agent.postgres import PostgresAgentStorage
 from agno.models.ollama import Ollama
-from agno.models.ollama import OllamaTools
-# from agno.knowledge.pdf import PDFKnowledgeBase, PDFReader
-# from agno.embedder.ollama import OllamaEmbedder
-# from agno.vectordb.pgvector import PgVector2
 from . import damath
-
 
 db_url = "postgresql+psycopg://ai:ai@localhost:5532/ai"
 
@@ -27,9 +18,6 @@ def board_to_valid_moves(board_str: str) -> str:
     Returns:
         str: JSON string valid moves of the board by position key pairs.
     """
-    print("\n", board_str)
-    print(type(board_str))
-
     transformed_data = (board_str
         .replace('null', 'None')
         .replace('true', 'True')
@@ -51,9 +39,6 @@ def board_to_valid_moves(board_str: str) -> str:
         .replace("'/]", '/]')
         .replace("/]", "'/']")
     )
-
-    print("\n", transformed_data)
-    print(type(transformed_data))
 
     transformed_data = eval(transformed_data)
 
@@ -132,7 +117,6 @@ def board_to_valid_moves(board_str: str) -> str:
     def get_dama_moves(index, piece):
         moves = [[], [], [], []]
         directions = [(7, 0), (9, 1), (-9, 2), (-7, 3)]
-
         for step, dir_idx in directions:
             current = index
             while True:
@@ -160,8 +144,9 @@ def board_to_valid_moves(board_str: str) -> str:
                     })
 
     if has_mandatory_capture:
-        valid_moves["valid_moves"] = mandatory_moves
+        valid_moves = {"valid_captures": mandatory_moves}
     else:
+        valid_moves["valid_moves"] = []
         for index, cell in enumerate(board):
             if isinstance(cell, list) and isinstance(cell[0], dict):
                 piece = cell[0]
@@ -191,15 +176,34 @@ def board_to_valid_moves(board_str: str) -> str:
 
     return json.dumps(valid_moves)
 
-dammy = Agent(
+def get_valid_moves_logic(message, max_retries=3):
+    for attempt in range(max_retries):
+        try:
+            response = agno_get_valid_moves.run(message)
+            if response.messages[-1].role != 'tool':
+                return response.messages[-1].content
+            print(f"Got tool response, attempt {attempt + 1} of {max_retries}")
+            continue
+        except Exception as e:
+            if attempt == max_retries - 1:
+                raise e
+            print(f"Error on attempt {attempt + 1} of {max_retries}: {str(e)}")
+            continue
+
+    raise ValueError(f"Failed to get valid response after {max_retries} attempts")
+
+
+agno_get_valid_moves = Agent(
     model=Ollama(id="llama3-groq-tool-use:8b"),
     instructions=[
-        "Pass the arguments to board_to_valid_moves, wrap the board_str with double quotes.",
-        "For each item in 'valid_moves', output '\"position\" - [destination]'.",
-        "Exanple output:",
-        "   Move from position [11] to [20, 29]",
-        "   Move from position [18] to [[25], [27, 36, 45, 54, 63], [], []]",
-        "Use the first element of 'position' and keep 'destination' structure intact.",
+        # "Pass the arguments to board_to_valid_moves, wrap the board_str with double quotes.",
+        "For each item in 'valid_moves' or 'valid_captures', output '[position] - [destination]'",
+        "Example output:",
+        "   Move from position [22, '/'] to [29, 31]",
+        "   Move from position [18, '+'] to [[25], [27, 36, 45, 54, 63], [], [11, 4]]",
+        "   Capture from position [11, '*'] to [29, 43]",
+        "   Capture from position [13, '+'] to [27, 45]",
+        "Keep 'position' and 'destination' structure intact.",
     ],
     tools=[board_to_valid_moves],
     show_tool_calls=True,
@@ -207,13 +211,60 @@ dammy = Agent(
     debug_mode=True
 )
 
-@damath.route('/chat', methods=['POST'])
-def chat():
-    data = request.json
-    user_message = data.get("message")
-    response = dammy.run(user_message)
-    print(response)
-    return jsonify({"response": response.content}), 200
+
+@damath.route('/get_valid_moves', methods=['POST'])
+def get_valid_moves():
+    try:
+        data = request.json
+        if not data or 'message' not in data:
+            return jsonify({'error': 'Missing message in request'}), 400
+
+        result = get_valid_moves_logic(data['message'])
+        return jsonify({'response': result}), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+agno_get_best_move = Agent(
+    model=Ollama(id="llama3-groq-tool-use:8b"),
+    # instructions=[
+    #     # "Pass the arguments to board_to_valid_moves, wrap the board_str with double quotes.",
+    #     "For each item in 'valid_moves', output '\"position\" - [destination]'.",
+    #     "Example output:",
+    #     "   Move from position [22, '/'] to [29, 31]",
+    #     "   Move from position [18, '+'] to [[25], [27, 36, 45, 54, 63], [], [11, 4]]",
+    #     "Keep 'position' and 'destination' structure intact.",
+    # ],
+    tools=[board_to_valid_moves],
+    show_tool_calls=True,
+    markdown=True,
+    debug_mode=True
+)
+
+@damath.route('/get_best_move', methods=['POST'])
+def get_best_move():
+    try:
+        data = request.json
+        if not data or 'message' not in data:
+            return jsonify({'error': 'Missing message in request'}), 400
+
+        print(data['message'])
+        valid_moves = get_valid_moves_logic(data['message'])
+        print(valid_moves)
+        return jsonify({'board': data['message'], 'valid_moves':valid_moves}), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+
+
+
+
+
+
+
 
 # @damath.route('/clear_knowledge_base', methods=['POST'])
 # def clear_knowledge_base():
