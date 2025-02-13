@@ -1,5 +1,6 @@
 import os
 import json
+import ast
 from flask import request, jsonify, session
 from typing import (Optional, Dict, List, Union, Any)
 from agno.agent import Agent
@@ -38,6 +39,7 @@ def board_to_valid_moves(board_str: str) -> str:
         .replace("/']", '/]')
         .replace("'/]", '/]')
         .replace("/]", "'/']")
+        .replace("]',", "],")
     )
 
     transformed_data = eval(transformed_data)
@@ -57,16 +59,16 @@ def board_to_valid_moves(board_str: str) -> str:
 
         if piece['is_dama']:
             directions = [
-                {"step": 7, "movement": 7},
-                {"step": 9, "movement": 9},
-                {"step": -7, "movement": -7},
-                {"step": -9, "movement": -9}
+                {"step": 7, "movement": 7},   # down-left
+                {"step": 9, "movement": 9},   # down-right
+                {"step": -7, "movement": -7}, # up-right
+                {"step": -9, "movement": -9}  # up-left
             ]
         else:
             if piece['color'] == 'r':
                 directions = [
-                    {"step": 7, "movement": 14},
-                    {"step": 9, "movement": 18}
+                    {"step": 7, "movement": 14},  # down-left
+                    {"step": 9, "movement": 18}   # down-right
                 ]
 
         for direction in directions:
@@ -176,12 +178,13 @@ def board_to_valid_moves(board_str: str) -> str:
 
     return json.dumps(valid_moves)
 
-def get_valid_moves_logic(message, max_retries=3):
+def get_valid_moves_logic(message, max_retries=10):
     for attempt in range(max_retries):
         try:
             response = agno_get_valid_moves.run(message)
-            if response.messages[-1].role != 'tool':
-                return response.messages[-1].content
+            if len(response.messages) == 5 and response.messages[-2].tool_call_error == False:
+                print(response, "\n\n")
+                return response
             print(f"Got tool response, attempt {attempt + 1} of {max_retries}")
             continue
         except Exception as e:
@@ -192,6 +195,46 @@ def get_valid_moves_logic(message, max_retries=3):
 
     raise ValueError(f"Failed to get valid response after {max_retries} attempts")
 
+def to_json(board_string):
+    transformed_data = (board_string
+        .replace('null', 'None')
+        .replace('true', 'True')
+        .replace('false', 'False')
+        .replace('Piece(r,', "{'color': 'r', 'value':")
+        .replace('Piece(b,', "{'color': 'b', 'value':")
+        .replace(', isdama=True)', ", 'is_dama': True}")
+        .replace(', isdama=False)', ", 'is_dama': False}")
+        .replace("+']", '+]')
+        .replace("'+]", '+]')
+        .replace("+]", "'+']")
+        .replace("-']", '-]')
+        .replace("'-]", '-]')
+        .replace("-]", "'-']")
+        .replace("*']", '*]')
+        .replace("'*]", '*]')
+        .replace("*]", "'*']")
+        .replace("/']", '/]')
+        .replace("'/]", '/]')
+        .replace("/]", "'/']")
+        .replace("]',", "],")
+    )
+
+    board = eval(transformed_data)
+
+    json_board = []
+    for position, item in enumerate(board):
+        if isinstance(item, list):
+            piece_data = {
+                "position": [position, item[1]],
+                "piece": None
+            }
+            if item[0] is not None:
+                piece = item[0]
+                color = 'red' if piece['color'] == 'r' else 'blue'
+                value = piece['value']
+                piece_data["piece"] = [color, value, piece['is_dama']]
+            json_board.append(piece_data)
+    return json.dumps({"board": json_board})
 
 agno_get_valid_moves = Agent(
     model=Ollama(id="llama3-groq-tool-use:8b"),
@@ -217,6 +260,64 @@ agno_get_valid_moves = Agent(
     debug_mode=True
 )
 
+agno_get_best_move = Agent(
+    model=Ollama(id="llama3-groq-tool-use:8b"),
+    instructions=[
+        "You are an expert DaMath Checkers player. Analyze the board and make strategic moves.",
+        "When deciding a move:",
+
+        "1. Strategic Positioning:",
+        "   - Advance pieces towards the center and opponent's side",
+        "   - Control key squares that restrict opponent movement",
+        "   - Create connected piece formations for mutual support",
+        "   - Build towards king row advancement",
+
+        "2. Operation Square Strategy:",
+        "   - Master the board's operation layout (+, −, ×, ÷)",
+        "   - Place positive-value pieces on subtraction (−) or division (÷) squares",
+        "   - Place negative-value pieces on addition (+) or multiplication (×) squares",
+        "   - Plan moves based on the operation of the landing square",
+
+        "3. Defensive Considerations:",
+        "   - Keep pieces protected by nearby friendly pieces",
+        "   - Avoid leaving pieces isolated or vulnerable",
+        "   - Maintain flexible movement options",
+        "   - Maximize your position while limiting opponent's opportunities",
+
+        "4. Forward Planning:",
+        "   - Use the board's operation layout to guide future moves",
+        "   - Position pieces to control multiple diagonal paths",
+        "   - Create favorable setups for future turns",
+        "   - Consider long-term strategic advantages",
+
+        "Important: Provide your move with EXACTLY ONE destination position in this format:",
+        "From [starting position] to [single destination position]",
+        "Example: From [9] to [13]",
+
+        "Reasoning (if any):",
+        "1. [Immediate position benefit]",
+        "2. [Operation square advantage]",
+        "3. [Defensive consideration]",
+        "4. [Future strategic opportunity]"
+    ],
+    markdown=True,
+    debug_mode=True
+)
+
+    # instructions=[
+    # "**Prioritize High-Score Captures:**",
+    # "   - If the board has 'valid_captures', use the 'get_scores_from_captures' tool.,",
+    # "   - Capture chips on addition (+) or multiplication (×) squares for higher scores.",
+    # "   - Avoid capturing on subtraction (−) or division (÷) squares unless necessary.",
+    # "   - Add 1 setence explanation to your output."
+    # "5. Leverage Dama for High-Score Captures:",
+    # "   - If a piece has `is_dama = True`, prioritize it for high-value captures.",
+    # "   - Use its movement to reach better capture opportunities.",
+    # "   - Position it strategically for future high-scoring moves while minimizing risks.",
+    # ],
+    # tools=[get_scores_from_captures],
+    # show_tool_calls=True,
+
 
 @damath.route('/get_valid_moves', methods=['POST'])
 def get_valid_moves():
@@ -226,80 +327,40 @@ def get_valid_moves():
             return jsonify({'error': 'Missing message in request'}), 400
 
         result = get_valid_moves_logic(data['message'])
-        return jsonify({'response': result}), 200
+        return jsonify({'response': result.messages[-1].content}), 200
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
-agno_get_best_move = Agent(
-    model=Ollama(id="llama3-groq-tool-use:8b"),
-    # instructions=[
-    #     # "Pass the arguments to board_to_valid_moves, wrap the board_str with double quotes.",
-    #     "For each item in 'valid_moves', output '\"position\" - [destination]'.",
-    #     "Example output:",
-    #     "   Move from position [22, '/'] to [29, 31]",
-    #     "   Move from position [18, '+'] to [[25], [27, 36, 45, 54, 63], [], [11, 4]]",
-    #     "Keep 'position' and 'destination' structure intact.",
-    # ],
-    tools=[board_to_valid_moves],
-    show_tool_calls=True,
-    markdown=True,
-    debug_mode=True
-)
-
 @damath.route('/get_best_move', methods=['POST'])
 def get_best_move():
+    def get_moves(board_data):
+            valid_moves = get_valid_moves_logic(board_data)
+            last_message_content = json.loads(valid_moves.messages[-2].content)
+
+            if 'valid_moves' in last_message_content:
+                return last_message_content['valid_moves']
+            elif 'valid_captures' in last_message_content:
+                return last_message_content['valid_captures']
+            return None
+
     try:
         data = request.json
         if not data or 'message' not in data:
             return jsonify({'error': 'Missing message in request'}), 400
 
-        print(data['message'])
-        valid_moves = get_valid_moves_logic(data['message'])
-        print(valid_moves)
-        return jsonify({'board': data['message'], 'valid_moves':valid_moves}), 200
+        json_board = to_json(data['message'])
+        moves = get_moves(data['message'])
+
+        board_and_move = {
+            "board": json.loads(json_board)['board'],
+            "valid_moves": moves
+        }
+
+        result = agno_get_best_move.run(str(board_and_move))
+
+        return jsonify({'response': result.messages[-1].content}), 200
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
-
-
-
-
-
-
-
-
-
-# @damath.route('/clear_knowledge_base', methods=['POST'])
-# def clear_knowledge_base():
-#     global agent
-#     if not agent or not agent.knowledge or not agent.knowledge.vector_db:
-#         return jsonify({"error": "Agent not initialized or knowledge base not found"}), 400
-
-#     agent.knowledge.vector_db.delete()
-
-#     return jsonify({"status": "Knowledge base cleared"}), 200
-
-
-# @damath.route('/agent_data', methods=['GET'])
-# def get_run_ids():
-#     if not agent:
-#         return jsonify({"error": "Game agent not initialized or storage not found"}), 400
-
-#     try:
-#         run_ids = agent.storage.get_all_session_ids()
-#         return jsonify({"run_ids": run_ids}), 200
-#     except Exception as e:
-#         return jsonify({"error": str(e)}), 500
-
-# @damath.route('/print_chat_history', methods=['GET'])
-# def print_chat_history():
-#     global agent
-#     if not agent:
-#         return jsonify({"error": "Game Agent not initialized or memory not found"}), 400
-
-#     chat_history = agent.get_chat_history()
-#     print(chat_history)
-#     return chat_history
