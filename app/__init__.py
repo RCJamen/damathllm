@@ -6,7 +6,10 @@ from config import DB_USERNAME, DB_PASSWORD, DB_NAME, DB_HOST, SECRET_KEY
 mysql = MySQL()
 
 def create_app():
-    app = Flask(__name__, instance_relative_config=True)
+    app = Flask(__name__,
+        static_folder='static',
+        template_folder='templates',
+        instance_relative_config=True)
     app.config.from_mapping(
         SECRET_KEY=SECRET_KEY,
         MYSQL_USER=DB_USERNAME,
@@ -18,5 +21,8 @@ def create_app():
     mysql.init_app(app)
 
     from .damath import damath
+    from .engine import engine
     app.register_blueprint(damath)
+    app.register_blueprint(engine)
+
     return app
