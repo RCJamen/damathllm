@@ -22,6 +22,8 @@ def get_valid_moves():
     game_instance.check_all_valid(game_instance.current_move)
     return game_instance.valid_moves_to_json()
 
+# http://127.0.0.1:5000/api/move
+# add for red
 @damath.route('/api/move', methods=['POST'])
 def make_move():
     data = request.get_json()

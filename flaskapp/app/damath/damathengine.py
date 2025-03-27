@@ -135,7 +135,10 @@ class Board:
                     color = 'red' if piece.color == 'r' else 'blue'
                     piece_data["piece"] = [color, piece.value, piece.is_dama]
                 json_board.append(piece_data)
-        return json.dumps({"board": json_board})
+        return json.dumps({
+            "board": json_board,
+            "array_board": f"{self.board}"
+        })
 
     def __repr__(self):
         return str(self.board)
@@ -454,7 +457,8 @@ class Game:
 
         return {
             "board": json.loads(self.board.to_json())["board"],
-            "scores": self.scores,
             "current_turn": self.current_move,
+            "scores": self.scores,
+            "move_history": self.move_history,
         }
             # "valid_moves": json.loads(self.valid_moves_to_json())["valid_moves"],
