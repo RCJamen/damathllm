@@ -1,5 +1,5 @@
 class Piece:
-    def __init__(self, color, value, is_dama=False, index=0):
+    def __init__(self, color, value, is_dama=0, index=0, name=""):
         self.color = color
         self.value = value
         self.is_dama = is_dama
@@ -24,31 +24,31 @@ def func1(board_state):
         if element == 'X':
             continue
         elif isinstance(element, list):
-            first_element = element[0]
-            if first_element is None:
+            piece = element[0]
+            if piece is None:
                 continue
-            elif isinstance(first_element, Piece) and first_element.color == 'r':
-                piece = first_element
-                piece.index = i
-            else:
+            if not isinstance(piece, Piece) or piece.color != 'r':
                 continue
-        key, value = func2(piece)
-        valid_moves.update({key: value})
+            piece.index = i
+            key, value = func2(piece)
+            valid_moves.update({key: value})
     return valid_moves
 
 
 def func2(piece):
     moves = []
-    for move in [7, 9]:
-        destination_index = piece.index + move
-        if destination_index < len(board_state):
-            square = board_state[destination_index]
-            if isinstance(square, list):
-                first_element = square[0]
+    for move in [piece.index + 7, piece.index + 9]:
+        if move < len(board_state):
+            destination_square = board_state[move]
+            if isinstance(destination_square, list):
+                first_element = destination_square[0]
                 if first_element is None:
-                    moves.append(destination_index)
-                elif not (isinstance(first_element, Piece) or first_element == 'X'):
-                    moves.append(destination_index)
+                    moves.append(move)
+            elif destination_square == 'X':
+                continue
+            else:
+                if not isinstance(destination_square, Piece) and destination_square != 'X':
+                    moves.append(move)
     return piece.index, moves
 
 

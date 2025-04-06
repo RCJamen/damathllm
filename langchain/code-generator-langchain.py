@@ -282,7 +282,7 @@ def normal_moves_runLLM(instruction):
 def dama_moves_runLLM(instruction):
     llm = ChatOllama(
         model="llama3.2:3b-instruct-q8_0",
-        temperature=.3,
+        temperature=0.5,
     )
     chain = llm
     res = ""
@@ -292,7 +292,7 @@ def dama_moves_runLLM(instruction):
 def normal_captures_runLLM(instruction):
     llm = ChatOllama(
         model="llama3.2:3b-instruct-q8_0",
-        temperature=.3,
+        temperature=0.5,
     )
     chain = llm
     res = ""
@@ -302,7 +302,7 @@ def normal_captures_runLLM(instruction):
 def dama_captures_runLLM(instruction):
     llm = ChatOllama(
         model="llama3.2:3b-instruct-q8_0",
-        temperature=.3,
+        temperature=0.5,
     )
     chain = llm
     res = ""

@@ -1,26 +1,80 @@
 import sys
+import signal
+from contextlib import contextmanager
+import time
+from multiprocessing import Process, Queue
+import platform
 
-from normal_moves import func1 as normal_moves
-from dama_moves import func1 as dama_moves
-from normal_captures import func5 as normal_captures
-from dama_captures import func7 as dama_captures
+class TimeoutException(Exception):
+    pass
 
-from normal_moves import board_state as normal_moves_board
-from dama_moves import board_state as dama_moves_board
-from normal_captures import board_state as normal_captures_board
-from dama_captures import board_state as dama_captures_board
+# For Unix-like systems
+@contextmanager
+def timeout(seconds):
+    def signal_handler(signum, frame):
+        raise TimeoutException("Timed out!")
+    
+    # Register a function to raise a TimeoutException on the signal
+    signal.signal(signal.SIGALRM, signal_handler)
+    signal.alarm(seconds)
+    
+    try:
+        yield
+    finally:
+        # Disable the alarm
+        signal.alarm(0)
+
+# For Windows compatibility
+def run_with_timeout(func, args, timeout_seconds):
+    q = Queue()
+    p = Process(target=lambda: q.put(func(*args)))
+    p.start()
+    p.join(timeout_seconds)
+    
+    if p.is_alive():
+        p.terminate()
+        p.join()
+        raise TimeoutException("Timed out!")
+    
+    return q.get()
+
+def safe_run_test(test_name):
+    try:
+        if test_name == "normal_moves":
+            from normal_moves import func1, board_state
+            result = str(func1(board_state))
+        elif test_name == "dama_moves":
+            from dama_moves import func1, board_state
+            result = str(func1(board_state))
+        elif test_name == "normal_captures":
+            from normal_captures import func5, board_state
+            result = str(func5(board_state))
+        elif test_name == "dama_captures":
+            from dama_captures import func7, board_state
+            result = str(func7(board_state))
+        return result
+    except Exception as e:
+        return f"Error: {str(e)}"
 
 def run_specific_test(test_name):
-    result = None
-    if test_name == "normal_moves":
-        result = str(normal_moves(normal_moves_board))
-    elif test_name == "dama_moves":
-        result = str(dama_moves(dama_moves_board))
-    elif test_name == "normal_captures":
-        result = str(normal_captures(normal_captures_board))
-    elif test_name == "dama_captures":
-        result = str(dama_captures(dama_captures_board))
-    print(f"{test_name.upper()}:{result}")
+    MAX_EXECUTION_TIME = 5  # Maximum execution time in seconds
+    
+    try:
+        if platform.system() != 'Windows':
+            # Unix-like systems
+            with timeout(MAX_EXECUTION_TIME):
+                result = safe_run_test(test_name)
+        else:
+            # Windows
+            result = run_with_timeout(safe_run_test, (test_name,), MAX_EXECUTION_TIME)
+            
+        print(f"{test_name.upper()}:{result}")
+    except TimeoutException:
+        print(f"❌ {test_name.upper()}: Function execution timed out after {MAX_EXECUTION_TIME} seconds")
+    except ImportError as e:
+        print(f"❌ {test_name.upper()}: Import error - {str(e)}")
+    except Exception as e:
+        print(f"❌ {test_name.upper()}: Unexpected error - {str(e)}")
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
