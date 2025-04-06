@@ -15,10 +15,28 @@ class Piece:
     def __hash__(self):
         return hash(self.name)
 
+class Piece:
+    def __init__(self, color, value, is_dama=0, index=0, name=""):
+        self.color = color
+        self.value = value
+        self.is_dama = is_dama
+        self.index = index
+        self.name = f"{color}, {value}"
+
+    def __repr__(self):
+        return f"Piece('{self.color}', {self.value}, is_dama={self.is_dama})"
+
+    def __eq__(self, other):
+        if not isinstance(other, Piece):
+            return False
+        return self.name == other.name
+
+    def __hash__(self):
+        return hash(self.name)
 
 def func7(board_state):
     valid_moves = {}
-    
+
     for i, element in enumerate(board_state):
         if isinstance(element, str) and element == 'X':
             continue
@@ -34,7 +52,7 @@ def func7(board_state):
                     valid_moves.update({key: value})
         else:
             raise ValueError("Invalid element in board state")
-    
+
     return valid_moves
 
 
@@ -64,22 +82,22 @@ def func8(piece):
                 break
 
         capmoves.append(tuple(holder))
-    
+
     return piece.index, capmoves
 
 
 # Example usage:
 
 board_state = [
-    [Piece('r', -112, is_dama=False), '*'], 'X', [None, '/'], 'X', [None, '-'], 'X', 
-    [None, '+'], 'X', 'X', [Piece('b', 0, is_dama=False), '/'], 'X', [None, '*'], 'X', 
-    [None, '+'], 'X', [None, '-'], [None, '-'], 'X', [None, '+'], 'X', [None, '*'], 
-    'X', [Piece('r', -9, is_dama=False), '/'], 'X', 'X', [None, '+'], 'X', [Piece('b', -11, 
-      is_dama=False), '-'], 'X', [None, '/'], 'X', [None, '*'], [Piece('b', 0, is_dama=False), 
-      '*'], 'X', [Piece('r', -5, is_dama=True), '/'], 'X', [None, '-'], 'X', [None, '+'], 
-      'X', 'X', [None, '/'], 'X', [Piece('b', -5, is_dama=True), '*'], 'X', [None, '+'], 
-      'X', [None, '-'], [None, '-'], 'X', [None, '+'], 'X', [None, '*'], 'X', [Piece('b', 6, 
-        is_dama=False), '/'], 'X', 'X', [None, '+'], 'X', [None, '-'], 'X', [None, '/'], 
+    [Piece('r', -112, is_dama=False), '*'], 'X', [None, '/'], 'X', [None, '-'], 'X',
+    [None, '+'], 'X', 'X', [Piece('b', 0, is_dama=False), '/'], 'X', [None, '*'], 'X',
+    [None, '+'], 'X', [None, '-'], [None, '-'], 'X', [None, '+'], 'X', [None, '*'],
+    'X', [Piece('r', -9, is_dama=False), '/'], 'X', 'X', [None, '+'], 'X', [Piece('b', -11,
+      is_dama=False), '-'], 'X', [None, '/'], 'X', [None, '*'], [Piece('b', 0, is_dama=False),
+      '*'], 'X', [Piece('r', -5, is_dama=True), '/'], 'X', [None, '-'], 'X', [None, '+'],
+      'X', 'X', [None, '/'], 'X', [Piece('b', -5, is_dama=True), '*'], 'X', [None, '+'],
+      'X', [None, '-'], [None, '-'], 'X', [None, '+'], 'X', [None, '*'], 'X', [Piece('b', 6,
+        is_dama=False), '/'], 'X', 'X', [None, '+'], 'X', [None, '-'], 'X', [None, '/'],
       'X', [Piece('r', 6, is_dama=False), '*']
     ]
 

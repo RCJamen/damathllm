@@ -70,35 +70,17 @@
     </div>
     </div>
     <div class="col-6 h-100" id="boardContainer">
-      <div id="board" class="board" style="grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr);">
-        {% for row in range(8) %}
-          {% for col in range(8) %}
-            {% set index = row * 8 + col %}
-            <div class="tile {% if (row + col) % 2 == 0 %}light-tile{% else %}dark-tile{% endif %}"
-                 id="tile-{{ index }}"
-                 tile-number="{{ index }}">
-              {% for piece in board %}
-                {% if piece.position[0] == index %}
-                    <p>
-                        {{ piece.position[1] }}
-                    </p>
-                  {% if piece.piece %}
-                    <div class="piece" id="piece-{{ index }}"
-                         style="background-color: {% if piece.piece[0] == 'red' %}var(--red-man){% else %}var(--blue-man){% endif %}">
+        <div id="board" class="board" style="grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr);">
+            {% for row in range(8) %}
+                {% for col in range(8) %}
+                    {% set index = row * 8 + col %}
+                    <div class="tile {% if (row + col) % 2 == 0 %}light-tile{% else %}dark-tile{% endif %}"
+                         id="tile-{{ index }}"
+                         tile-number="{{ index }}">
                     </div>
-                    <p id="tile-{{ index }}-text" class="tile-text">
-                      {{ piece.piece[1] }}
-                    </p>
-                    {% if piece.piece[2] %}
-                      <img src="{{ crown_icon }}" alt="crown" class="crown"/>
-                    {% endif %}
-                  {% endif %}
-                {% endif %}
-              {% endfor %}
-            </div>
-          {% endfor %}
-        {% endfor %}
-      </div>
+                {% endfor %}
+            {% endfor %}
+        </div>
     </div>
     <div class="col-2 pl-5 pr-0 pb-5 pt-5 rounded">
       <div class="row">
@@ -106,9 +88,20 @@
           <h1 class="text-center">Game info</h1>
         </div>
         <hr class="col-12 bg-secondary" />
-
         <div class="col-12">
-          <p class="display-6">Turn: <code id="turn"></code></p>
+          <p class="display-6">Turn: <code id="turn" class="score-display"></code></p>
+        </div>
+        <div class="col-12">
+          <p class="display-6">Score:
+          <table class="table m-0">
+            <thead>
+              <tr>
+                <th scope="col">Blue: <code id="blueScore" class="score-display"></code></th>
+                <th scope="col">Red: <code id="redScore" class="score-display"></code></th>
+              </tr>
+            </thead>
+          </table>
+          </p>
         </div>
         <div class="col-12">
           <p class="display-6">Move history</p>
@@ -121,7 +114,6 @@
               </tr>
             </thead>
           </table>
-
           <div id="historyContainer" class="history-container m-0">
             <table class="table">
               <tbody id="historyTableBody"></tbody>

@@ -24,41 +24,35 @@ cat > test-code-output.py << 'EOF'
 import sys
 import signal
 from contextlib import contextmanager
-import time
 from multiprocessing import Process, Queue
 import platform
 
 class TimeoutException(Exception):
     pass
 
-# For Unix-like systems
 @contextmanager
 def timeout(seconds):
     def signal_handler(signum, frame):
         raise TimeoutException("Timed out!")
-    
-    # Register a function to raise a TimeoutException on the signal
     signal.signal(signal.SIGALRM, signal_handler)
     signal.alarm(seconds)
-    
+
     try:
         yield
     finally:
-        # Disable the alarm
         signal.alarm(0)
 
-# For Windows compatibility
 def run_with_timeout(func, args, timeout_seconds):
     q = Queue()
     p = Process(target=lambda: q.put(func(*args)))
     p.start()
     p.join(timeout_seconds)
-    
+
     if p.is_alive():
         p.terminate()
         p.join()
         raise TimeoutException("Timed out!")
-    
+
     return q.get()
 
 def safe_run_test(test_name):
@@ -80,17 +74,14 @@ def safe_run_test(test_name):
         return f"Error: {str(e)}"
 
 def run_specific_test(test_name):
-    MAX_EXECUTION_TIME = 5  # Maximum execution time in seconds
-    
+    MAX_EXECUTION_TIME = 5
     try:
         if platform.system() != 'Windows':
-            # Unix-like systems
             with timeout(MAX_EXECUTION_TIME):
                 result = safe_run_test(test_name)
         else:
-            # Windows
             result = run_with_timeout(safe_run_test, (test_name,), MAX_EXECUTION_TIME)
-            
+
         print(f"{test_name.upper()}:{result}")
     except TimeoutException:
         print(f"❌ {test_name.upper()}: Function execution timed out after {MAX_EXECUTION_TIME} seconds")

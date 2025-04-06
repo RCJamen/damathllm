@@ -49,12 +49,12 @@ def func1(board_state):
 def func2(piece):
     damamove = [7, 9, -9, -7]
     moves = []
-    
+
     for mv in damamove:
         dest_index = piece.index + mv
         holder = []
 
-        while (0 <= dest_index < len(board_state) and 
+        while (0 <= dest_index < len(board_state) and
                board_state[dest_index][0] is None):
             holder.append(dest_index)
             dest_index += mv
@@ -65,15 +65,15 @@ def func2(piece):
 
 
 # Example usage
-board_state = [[None, '*'], 'X', [None, '/'], 'X', [None, '-'], 'X', [None, '+'], 'X', 'X', 
-              [None, '/'], 'X', [None, '*'], 'X', [Piece('r', 2, is_dama=False), '+'], 'X', 
-              [Piece('r', 0, is_dama=False), '-'], [None, '-'], 'X', [None, '+'], 'X', 
-              [Piece('r', 6, is_dama=True), '*'], 'X', [Piece('r', -9, is_dama=False), '/'], 'X', 
-              'X', [None, '+'], 'X', [None, '-'], 'X', [None, '/'], 'X', [None, '*'], 
-              [Piece('b', 0, is_dama=True), '*'], 'X', [None, '/'], 'X', [None, '-'], 'X', 
-              [None, '+'], 'X', 'X', [None, '/'], 'X', [None, '*'], 'X', [None, '+'], 'X', 
-              [None, '-'], [Piece('r', -5, is_dama=True), '-'], 'X', [None, '+'], 'X', 
-              [None, '*'], 'X', [None, '/'], 'X', 'X', [None, '+'], 'X', [None, '-'], 'X', 
+board_state = [[None, '*'], 'X', [None, '/'], 'X', [None, '-'], 'X', [None, '+'], 'X', 'X',
+              [None, '/'], 'X', [None, '*'], 'X', [Piece('r', 2, is_dama=False), '+'], 'X',
+              [Piece('r', 0, is_dama=False), '-'], [None, '-'], 'X', [None, '+'], 'X',
+              [Piece('r', 6, is_dama=True), '*'], 'X', [Piece('r', -9, is_dama=False), '/'], 'X',
+              'X', [None, '+'], 'X', [None, '-'], 'X', [None, '/'], 'X', [None, '*'],
+              [Piece('b', 0, is_dama=True), '*'], 'X', [None, '/'], 'X', [None, '-'], 'X',
+              [None, '+'], 'X', 'X', [None, '/'], 'X', [None, '*'], 'X', [None, '+'], 'X',
+              [None, '-'], [Piece('r', -5, is_dama=True), '-'], 'X', [None, '+'], 'X',
+              [None, '*'], 'X', [None, '/'], 'X', 'X', [None, '+'], 'X', [None, '-'], 'X',
               [None, '/'], [None, '*']]
 
 print(func1(board_state))

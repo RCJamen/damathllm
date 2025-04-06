@@ -157,3 +157,70 @@ response = chain.invoke({
     "board_state": board_state,
     "valid_moves": valid_moves,
 })
+
+def reinitialize_board(board_state, new_piece_class):
+    new_board = []
+    for cell in board_state:
+        if isinstance(cell, list):
+            if cell[0] is None:
+                new_board.append([None, cell[1]])
+            else:
+                # Create new Piece instance with the same attributes
+                old_piece = cell[0]
+                new_piece = new_piece_class(
+                    color=old_piece.color,
+                    value=old_piece.value,
+                    is_dama=old_piece.is_dama,
+                    index=old_piece.index
+                )
+                new_board.append([new_piece, cell[1]])
+        else:
+            new_board.append(cell)
+    return new_board
+
+def get_valid_moves(test_name, board_state):
+    try:
+        if test_name == "normal_moves":
+            from normal_moves import func1, Piece
+            import normal_moves
+            new_board = reinitialize_board(board_state, Piece)
+            normal_moves.board_state = new_board
+            result = func1(new_board)
+        elif test_name == "dama_moves":
+            from dama_moves import func1, Piece
+            import dama_moves
+            new_board = reinitialize_board(board_state, Piece)
+            dama_moves.board_state = new_board
+            result = func1(new_board)
+        elif test_name == "normal_captures":
+            from normal_captures import func5, Piece
+            import normal_captures
+            new_board = reinitialize_board(board_state, Piece)
+            normal_captures.board_state = new_board
+            result = func5(new_board)
+        elif test_name == "dama_captures":
+            from dama_captures import func7, Piece
+            import dama_captures
+            new_board = reinitialize_board(board_state, Piece)
+            dama_captures.board_state = new_board
+            result = func7(new_board)
+        return print("before", result)
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+for test in ["normal_moves", "dama_moves", "normal_captures", "dama_captures"]:
+
+    new_board_state = [
+        [Piece('r', -112, is_dama=False), '*'], 'X', [None, '/'], 'X', [None, '-'], 'X',
+        [None, '+'], 'X', 'X', [Piece('b', 0, is_dama=False), '/'], 'X', [None, '*'], 'X',
+        [None, '+'], 'X', [None, '-'], [None, '-'], 'X', [None, '+'], 'X', [None, '*'],
+        'X', [Piece('r', -9, is_dama=False), '/'], 'X', 'X', [None, '+'], 'X', [Piece('b', -11,
+          is_dama=False), '-'], 'X', [None, '/'], 'X', [None, '*'], [Piece('b', 0, is_dama=False),
+          '*'], 'X', [Piece('r', -5, is_dama=True), '/'], 'X', [None, '-'], 'X', [None, '+'],
+          'X', 'X', [None, '/'], 'X', [Piece('b', -5, is_dama=True), '*'], 'X', [None, '+'],
+          'X', [None, '-'], [None, '-'], 'X', [None, '+'], 'X', [None, '*'], 'X', [Piece('b', 6,
+            is_dama=False), '/'], 'X', 'X', [None, '+'], 'X', [None, '-'], 'X', [None, '/'],
+          'X', [Piece('r', 6, is_dama=False), '*']
+        ]
+
+    get_valid_moves(test, new_board_state)

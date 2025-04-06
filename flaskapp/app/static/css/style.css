@@ -1,7 +1,7 @@
 :root {
     --primary: #FDF0D5;
-    --blue-man: #780000;
-    --red-man: #336683;
+    --blue-man: #336683;
+    --red-man: #780000;
     --light: #FDF0D5;
     --dark: #669BBC;
     --dark: #003049;
@@ -93,7 +93,7 @@ main {
     width: 80%;
     height: 80%;
     border-radius: 50%;
-    opacity: .84;
+    opacity: 100%;
     background: var(--primary);
     box-shadow: 0.3rem 0.9rem 0.7rem rgba(0, 0, 0, 0.747);
     pointer-events: auto;
@@ -134,11 +134,32 @@ main {
     padding-bottom: 100%;
 }
 
-.tile-text {
+.tile-text-red {
     position: absolute;
     text-align: center;
     font-weight: bolder;
+    z-index: 2;
+    color: #FFFFFF;
+}
 
+.tile-text-blue {
+    position: absolute;
+    text-align: center;
+    font-weight: bolder;
+    z-index: 2;
+}
+
+.tile-text-operator {
+    position: absolute;
+    font-weight: bolder;
+    text-align: center;
+    z-index: 0;
+    font-size: 72px;
+    width: 100%;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    opacity: 0.5;
 }
 
 .btn-custom {
@@ -201,4 +222,9 @@ tr {
 /* auto scroll to bottom */
 .history-container {
     scroll-behavior: smooth;
+}
+
+.score-display {
+    font-size: 28px;
+    font-weight: bold;
 }
