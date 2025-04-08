@@ -272,7 +272,7 @@ from langchain_ollama import ChatOllama
 def normal_moves_runLLM(instruction):
     llm = ChatOllama(
         model="llama3.2:3b-instruct-q8_0",
-        temperature=0,
+        temperature=0.5,
     )
     chain = llm
     res = ""
