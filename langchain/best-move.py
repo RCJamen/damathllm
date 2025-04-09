@@ -24,56 +24,9 @@ class Piece:
 
 llm = ChatOllama(
     model="llama3.1",
-    temperature=0.5,
+    temperature=0,
     format="json"
 )
-
-# system_prompt = ChatPromptTemplate.from_template(
-#     """System Prompt:
-# You are a Damath game-playing agent that understands the board state representation.
-# The board is represented as a one-dimensional list of 64 elements (an 8x8 grid). Playable squares are lists of two elements:
-#   - The first element is either a Piece (with attributes like color, value, and is_dama) or None if the square is empty.
-#   - The second element is an operator (such as '', '/', '-', '+').
-# Non-playable squares are denoted by "X".
-
-# How to choose source and destination:
-# 1. The valid_moves dictionary shows which pieces can move where:
-#    - Keys (source): The position of your moveable pieces.
-#    - Values (destinations): For normal pieces, the destinations are provided as a list of integer positions. For Dama/King pieces, the destinations are provided as a tuple (or tuple of tuples). For example:
-#     {{
-#     18: [(25,), (27, 36, 45, 54, 63), (11, 4)],
-#     22: [29, 31],
-#     }}
-#     - Moves for key 22 are normal piece.
-#     - Moves for key 18 (which are tuples) are for Dama/King pieces, so avoid using these moves casually unless a capture or significant strategic advantage is available.
-
-# 2. For normal moves (non-captures) using normal pieces:
-#    - Choose a source position from the valid_moves keys with integer list values.
-#    - Pick a destination from the list of possible moves for that source.
-#    - Also, prefer moves that:
-#      * Advance pieces toward the opponent's side.
-#      * Protect your valuable pieces.
-#      * Control important board positions.
-#      * Create opportunities for future captures.
-#    - **Prioritize moves that advance normal pieces**, especially those that are near the position value of 63 to attain Dama/King status (closer to the opponent's side).
-
-# 3. For moves involving Dama/King pieces:
-#    - The valid_moves entries that have tuple values represent Dama/King moves.
-#    - **Avoid using Dama/King moves casually.** Reserve these moves primarily for capturing opportunities or when a clear strategic advantage is present.
-
-# 4. Assessing the Move Consequences:
-#    - **Simulate the Outcome:** Before finalizing a move, update the board mentally (or via simulation) to see how it will change.
-#    - **Threat Analysis:** Check if moving to the target square exposes your piece to an immediate capture (for example, if moving to a square allows an opponent to capture it immediately). Evaluate the material and positional loss in such scenarios.
-#    - **Risk vs. Reward:** Weigh the benefits of the move (advancing position, control, or creating capture opportunities) against the risks (such as exposing a piece to capture or a counter-attack).
-#    - **Look-Ahead:** If possible, simulate a few moves ahead (using a minimax-like approach) to foresee potential responses by your opponent and ensure that the move does not lead to a significant disadvantage.
-
-# 5. **Chain-of-Thought Requirement:**
-#    - Internally, simulate a chain-of-thought that explains your move evaluation step by step. However, only return the final decision (source, destination, and a succinct explanation) in JSON.
-#    - Include an internal evaluation of possible outcomes, but do not output this chain-of-thought in your final answer.
-
-# Return your decision as JSON with three keys: "source", "destination", and "reason".
-# """
-# )
 
 system_prompt = ChatPromptTemplate.from_template(
     """System Prompt:
@@ -157,70 +110,3 @@ response = chain.invoke({
     "board_state": board_state,
     "valid_moves": valid_moves,
 })
-
-def reinitialize_board(board_state, new_piece_class):
-    new_board = []
-    for cell in board_state:
-        if isinstance(cell, list):
-            if cell[0] is None:
-                new_board.append([None, cell[1]])
-            else:
-                # Create new Piece instance with the same attributes
-                old_piece = cell[0]
-                new_piece = new_piece_class(
-                    color=old_piece.color,
-                    value=old_piece.value,
-                    is_dama=old_piece.is_dama,
-                    index=old_piece.index
-                )
-                new_board.append([new_piece, cell[1]])
-        else:
-            new_board.append(cell)
-    return new_board
-
-def get_valid_moves(test_name, board_state):
-    try:
-        if test_name == "normal_moves":
-            from normal_moves import func1, Piece
-            import normal_moves
-            new_board = reinitialize_board(board_state, Piece)
-            normal_moves.board_state = new_board
-            result = func1(new_board)
-        elif test_name == "dama_moves":
-            from dama_moves import func1, Piece
-            import dama_moves
-            new_board = reinitialize_board(board_state, Piece)
-            dama_moves.board_state = new_board
-            result = func1(new_board)
-        elif test_name == "normal_captures":
-            from normal_captures import func5, Piece
-            import normal_captures
-            new_board = reinitialize_board(board_state, Piece)
-            normal_captures.board_state = new_board
-            result = func5(new_board)
-        elif test_name == "dama_captures":
-            from dama_captures import func7, Piece
-            import dama_captures
-            new_board = reinitialize_board(board_state, Piece)
-            dama_captures.board_state = new_board
-            result = func7(new_board)
-        return print("before", result)
-    except Exception as e:
-        return f"Error: {str(e)}"
-
-for test in ["normal_moves", "dama_moves", "normal_captures", "dama_captures"]:
-
-    new_board_state = [
-        [Piece('r', -112, is_dama=False), '*'], 'X', [None, '/'], 'X', [None, '-'], 'X',
-        [None, '+'], 'X', 'X', [Piece('b', 0, is_dama=False), '/'], 'X', [None, '*'], 'X',
-        [None, '+'], 'X', [None, '-'], [None, '-'], 'X', [None, '+'], 'X', [None, '*'],
-        'X', [Piece('r', -9, is_dama=False), '/'], 'X', 'X', [None, '+'], 'X', [Piece('b', -11,
-          is_dama=False), '-'], 'X', [None, '/'], 'X', [None, '*'], [Piece('b', 0, is_dama=False),
-          '*'], 'X', [Piece('r', -5, is_dama=True), '/'], 'X', [None, '-'], 'X', [None, '+'],
-          'X', 'X', [None, '/'], 'X', [Piece('b', -5, is_dama=True), '*'], 'X', [None, '+'],
-          'X', [None, '-'], [None, '-'], 'X', [None, '+'], 'X', [None, '*'], 'X', [Piece('b', 6,
-            is_dama=False), '/'], 'X', 'X', [None, '+'], 'X', [None, '-'], 'X', [None, '/'],
-          'X', [Piece('r', 6, is_dama=False), '*']
-        ]
-
-    get_valid_moves(test, new_board_state)
