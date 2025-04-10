@@ -382,7 +382,7 @@ class Game:
                         operator = '//'
                     try:
                         raw_score = eval(f"{self.board.board[piece_index][0].value} {operator} {self.board.board[index_of_captured_piece][0].value}")
-                        score = 0 if (self.board.board[destination][1] == '/' and abs(raw_score) < 1) else round(raw_score) if self.board.board[destination][1]=='/' else int(raw_score)
+                        score = round(raw_score)
                         capturing_is_dama = self.board.board[piece_index][0].is_dama
                         captured_is_dama = self.board.board[index_of_captured_piece][0].is_dama
                         if capturing_is_dama and captured_is_dama:
@@ -402,7 +402,7 @@ class Game:
                 operator = '//'
             try:
                 raw_score = eval(f"{self.board.board[piece_index][0].value} {operator} {self.board.board[index_of_captured_piece][0].value}")
-                score = 0 if (self.board.board[destination][1] == '/' and abs(raw_score) < 1) else round(raw_score) if self.board.board[destination][1]=='/' else int(raw_score)
+                score = round(raw_score)
                 capturing_is_dama = self.board.board[piece_index][0].is_dama
                 captured_is_dama = self.board.board[index_of_captured_piece][0].is_dama
                 if capturing_is_dama and captured_is_dama:

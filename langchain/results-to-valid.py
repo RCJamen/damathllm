@@ -71,12 +71,99 @@ def get_valid_moves(test_name, board_state):
 
 results = {}
 for test in ["normal_moves", "dama_moves", "normal_captures", "dama_captures"]:
-    new_board_state = [[Piece('r', 2, is_dama=False), '*'], 'X', [None, '/'], 'X', [None, '-'], 'X', [Piece('r', -11, is_dama=False), '+'], 'X', 'X', [Piece('r', -5, is_dama=False), '/'], 'X', [Piece('r', 10, is_dama=False), '*'], 'X', [Piece('r', 8, is_dama=False), '+'], 'X', [Piece('r', 0, is_dama=False), '-'], [None, '-'], 'X', [None, '+'], 'X', [None, '*'], 'X', [Piece('r', -3, is_dama=False), '/'], 'X', 'X', [Piece('r', -1, is_dama=False), '+'], 'X', [None, '-'], 'X', [None, '/'], 'X', [None, '*'], [None, '*'], 'X', [Piece('r', -7, is_dama=False), '/'], 'X', [None, '-'], 'X', [None, '+'], 'X', 'X', [None, '/'], 'X', [None, '*'], 'X', [None, '+'], 'X', [None, '-'], [None, '-'], 'X', [Piece('b', -11, is_dama=False), '+'], 'X', [None, '*'], 'X', [Piece('b', 2, is_dama=False), '/'], 'X', 'X', [None, '+'], 'X', [Piece('r', 6, is_dama=True), '-'], 'X', [None, '/'], 'X', [None, '*']]
-
+    new_board_state = [
+    [None, '*'],
+    'X',
+    [None, '/'],
+    'X',
+    [None, '-'],
+    'X',
+    [None, '+'],
+    'X', 'X',
+    [None, '/'],
+    'X',
+    [None, '*'],
+    'X',
+    [Piece('r', 2, is_dama=False), '+'],
+    'X',
+    [Piece('r', 0, is_dama=False), '-'],
+    [None, '-'],
+    'X',
+    [None, '+'],
+    'X',
+    [Piece('r', 6, is_dama=True), '*'],
+    'X',
+    [Piece('r', -9, is_dama=False), '/'],
+    'X', 'X',
+    [None, '+'],
+    'X',
+    [None, '-'],
+    'X',
+    [None, '/'],
+    'X',
+    [None, '*'],
+    [Piece('b', 0, is_dama=True), '*'],
+    'X',
+    [None, '/'],
+    'X',
+    [None, '-'],
+    'X',
+    [None, '+'],
+    'X', 'X',
+    [None, '/'],
+    'X',
+    [None, '*'],
+    'X',
+    [None, '+'],
+    'X',
+    [None, '-'],
+    [Piece('r', -5, is_dama=True), '-'],
+    'X',
+    [None, '+'],
+    'X',
+    [None, '*'],
+    'X',
+    [None, '/'],
+    'X', 'X',
+    [None, '+'],
+    'X',
+    [None, '-'],
+    'X',
+    [None, '/'],
+    'X',
+    [None, '*']
+]
+    
     results[test] = get_valid_moves(test, new_board_state)
 
-print("Original results:")
+print("\n\nOriginal results:")
 print(results)
+
+def clean_dict(data):
+    if isinstance(data, dict):
+        cleaned = {}
+        for key, value in data.items():
+            cleaned_value = clean_dict(value)
+            if cleaned_value:  # only add if not empty
+                cleaned[key] = cleaned_value
+            elif key in ["normal_moves", "dama_moves", "normal_captures", "dama_captures"]:
+                cleaned[key] = {}
+        return cleaned
+    elif isinstance(data, list):
+        cleaned_list = [clean_dict(item) for item in data if item not in ([], ())]
+        return [item for item in cleaned_list if item != {}]  # remove empty dicts
+    elif isinstance(data, tuple):
+        cleaned_tuple = tuple(item for item in data if item not in ([], ()))
+        return cleaned_tuple if cleaned_tuple else None
+    return data
+
+
+# Clean it
+results = clean_dict(results)
+
+print("\n\nCleaned results:")
+print(results)
+
 
 # parser_prompt_part1 = ChatPromptTemplate.from_template("""
 # You are given a dictionary named "results" with the following keys:
@@ -117,16 +204,15 @@ print(results)
 # """)
 
 parser_prompt_part1 = ChatPromptTemplate.from_template("""
-You are given a dictionary named "results" with the following keys:
-1. move data: "normal_moves" and "dama_moves"
-2. capture data: "normal_captures" and "dama_captures"
+You are given a dictionary named "results" with a classification for the following keys:
+1. "normal_moves" and "dama_moves" dictionaries belong to 'move data', while
+2. "normal_captures" and "dama_captures" dictionaries belong to 'capture data'
 
 Your task is to choose which set of data to return.
 
 Steps:
-1. For each key in "normal_captures" and "dama_captures": A list is considered empty if it has no elements. If the list has elements, consider it empty if every element in the list is an empty tuple (a tuple with zero elements).
-2. If any key in either capture dictionary has a list that is not empty (by the above rules), choose the capture data.
-3. Otherwise, if all keys in both capture dictionaries are empty, choose the move data.
+1. If any key in either capture dictionary is not empty, choose the capture data.
+2. Otherwise, if all dictionaries in both capture dictionaries are empty, choose the move data.
 
 Return a JSON result using the original data without any filtering, in one of the following forms:
 
@@ -146,16 +232,18 @@ If move data is chosen:
     }}
 }}
 
+The original dictionaries must be followed strictly.
+
 For example, given these results:
 {results}
 
-Return a JSON result.
+REMEMBER: Return a pure-JSON format result ONLY. Do NOT return in a markdown-style code block format.
 """)
 
 
 
 results_to_valid_llm_part1 = ChatOllama(
-    model="llama3.2:3b-instruct-q8_0",
+    model="gemma3:12b-it-q8_0",
     temperature=0,
     format="json"
 )
@@ -166,8 +254,9 @@ response_part1 = chain_part1.invoke({
     "results": results,
 })
 
+print(response_part1.content)
 filtered_results = json.loads(response_part1.content)
-print("Filtered (Intermediate) Results:")
+print("\n\nFiltered (Intermediate) Results:")
 print(filtered_results)
 
 parser_prompt_part2 = ChatPromptTemplate.from_template("""
@@ -181,7 +270,7 @@ Perform the following steps:
       b. If only one dictionary has a non-empty value for that key, use that value.
    - Otherwise, if "filtered_results" contains move data:
       a. For a given key, merge the lists by taking the values from "normal_moves" and then appending the values from "dama_moves" (assume any tuple values in "dama_moves" are already flattened).
-2. After merging, remove any key that has an empty list.
+2. After merging, remove any key that has an empty dictionary.
 3. Return the final JSON output with:
    - If the input was capture data, return {{{{"captures": {{ ...merged data... }}}}}}
    - If the input was move data, return {{{{"moves": {{ ...merged data... }}}}}}
@@ -193,13 +282,13 @@ Return the final JSON output.
 """)
 
 
-results_to_valid_llm_part2 = ChatOllama(
-    model="llama3.1",
-    temperature=0,
-    format="json"
-)
+# results_to_valid_llm_part2 = ChatOllama(
+#     model="llama3.2:3b-instruct-q8_0",
+#     temperature=0,
+#     format="json"
+# )
 
-chain_part2 = parser_prompt_part2 | results_to_valid_llm_part2
+chain_part2 = parser_prompt_part2 | results_to_valid_llm_part1
 
 response_part2 = chain_part2.invoke({
     "filtered_results": filtered_results,
@@ -209,3 +298,83 @@ final_results = json.loads(response_part2.content)
 valid_moves = final_results
 print("Final Valid Moves:")
 print(valid_moves)
+
+
+
+
+
+### For capture scoring
+
+# valid_moves = {
+#     "captures": {
+#             59: [(41, 32)]
+#     }
+# }
+
+
+# Get pairings next:
+src_dest_pairs = []
+is_capture = False
+for key, value in valid_moves.items():
+    value = {int(k): v for k, v in value.items()}
+    print(key, value)
+    if key == 'captures':
+        is_capture = True
+    for source, destinations in value.items():
+        for destination in destinations:
+            if isinstance(destination,tuple):
+                for item in destination:
+                    src_dest_pairs.append([source,item])    
+            else:
+                src_dest_pairs.append([source,destination])
+print("\n\n\n")
+print("SRCDEST pairs:", src_dest_pairs)
+
+if src_dest_pairs != [] and is_capture:
+# use the board state to determine score for pairs.
+# first, determine the distance
+
+
+    for index, (source, dest) in enumerate(src_dest_pairs):
+        
+        distance = dest - source
+
+        directions = [-7, -9, 7, 9]
+        for direction in directions:
+            if distance % direction == 0:  
+                factor = distance // direction
+                print(f"Direction: {direction}, Multiplied by: {factor}")
+                break 
+
+        enemy=False
+        middle = source
+        while middle != dest:
+            middle += direction
+            if isinstance(new_board_state[middle][0], Piece):
+
+                if new_board_state[middle][0].color == 'b':
+                    enemy = True
+                    break
+        if enemy:
+            try:
+                srcval = new_board_state[source][0].value
+                midval = new_board_state[middle][0].value
+                destop = new_board_state[dest][1]
+                print(f"{srcval}{destop}{midval}")
+                score = round(eval(f"{srcval}{destop}{midval}"))
+                capturing_is_dama = new_board_state[source][0].is_dama
+                captured_is_dama = new_board_state[middle][0].is_dama
+                if capturing_is_dama and captured_is_dama:
+                    score *= 4
+                elif capturing_is_dama or captured_is_dama:
+                    score *= 2
+            except ZeroDivisionError:
+                score = 0
+
+            src_dest_pairs[index] = (source, dest, score)
+
+    print(src_dest_pairs)
+
+
+
+
