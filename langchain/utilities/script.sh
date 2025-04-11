@@ -27,7 +27,7 @@ EXPECTED_NORMAL_CAPTURES="{0: [18], 22: [], 34: [52, 20], 63: [45]}"
 EXPECTED_DAMA_CAPTURES="{34: [(), (52, 61), (20, 13, 6), ()]}"
 
 # Create test runner
-cat > test-code-output.py << 'EOF'
+cat > ./utilities/test-code-output.py << 'EOF'
 import sys
 import signal
 from contextlib import contextmanager
@@ -120,7 +120,7 @@ generate_tests() {
 # Function to run all tests and gather results
 run_tests() {
     echo "Running tests..."
-    output=$(python3 test-code-output.py "${!test_status[@]}" | grep -E "^[A-Z_]+:")
+    output=$(python3 ./utilities/test-code-output.py "${!test_status[@]}" | grep -E "^[A-Z_]+:")
 
     while IFS= read -r line; do
         test_name=$(echo "$line" | cut -d: -f1 | tr '[:upper:]' '[:lower:]')

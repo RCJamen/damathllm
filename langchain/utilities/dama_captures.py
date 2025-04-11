@@ -16,106 +16,119 @@ class Piece:
         return hash(self.name)
 
 
-# Board state
-board_state = [
-    [Piece('r', -112, is_dama=False), '*'],
-    'X', 
-    [None, '/'], 
-    'X', 
-    [None, '-'], 
-    'X', 
-    [None, '+'], 
-    'X', 'X',
-    [Piece('b', 0, is_dama=False), '/'], 
-    'X', 
-    [None, '*'], 
-    'X', 
-    [None, '+'], 
-    'X', 
-    [None, '-'], 
-    [None, '-'], 
-    'X', 
-    [None, '+'], 
-    'X', 
-    [None, '*'], 
-    'X', 
-    [Piece('r', -9, is_dama=False), '/'], 
-    'X', 
-    'X',
-    [None, '+'], 
-    [Piece('b', -11, is_dama=False), '-'],
-    'X', 
-    [None, '/'], 
-    'X', 
-    [None, '*'], 
-    [Piece('b', 0, is_dama=False), '*"], 
-    'X', 
-    [Piece('r', -5, is_dama=True), '/'], 
-    'X', 
-    [None, '-'], 
-    'X', 
-    [None, '+'], 
-    'X', 
-    'X', 
-    [None, '/'], 
-    'X', 
-    [Piece('b', -5, is_dama=True), '*"], 
-    'X', 
-    [None, '+'], 
-    'X', 
-    [None, '-'], 
-    [None, '-'], 
-    'X', 
-    [None, '+'], 
-    'X', 
-    [None, '*'], 
-    'X', 
-    [Piece('b', 6, is_dama=False), '/'], 
-    'X', 
-    'X',
-    [None, '+'], 
-    [None, '-'], 
-    'X', 
-    [None, '/'], 
-    'X', 
-    [Piece('r', 6, is_dama=False), '*']
-]
-
 def func7(board_state):
     valid_moves = {}
-    for i, elem in enumerate(board_state):
-        if isinstance(elem, str) and elem == 'X':
+    for i, element in enumerate(board_state):
+        if element == 'X':
             continue
-        elif isinstance(elem, list):
-            first_elem = elem[0]
-            if first_elem is None:
+        elif isinstance(element, list):
+            piece = element[0]
+            if piece is None:
                 continue
-            elif isinstance(first_elem, Piece):
-                if first_elem.color == 'r' and first_elem.is_dama:
-                    piece_index = i
-                    func8(first_elem, board_state)
-                    valid_moves.update(func8(first_elem, board_state))
+            elif not isinstance(piece, Piece):
+                continue
+            if piece.color == 'r' and piece.is_dama:
+                piece.index = i
+                key, value = func8(piece)
+                valid_moves.update({key: value})
     return valid_moves
 
 
-def func8(piece, board_state):
+def func8(piece):
     capmoves = []
     dia = [7, 9, -7, -9]
     src_ind = piece.index
+
     for d in dia:
         capt_ind = src_ind + d
+        holder = []
+
         while 0 <= capt_ind < len(board_state) and isinstance(board_state[capt_ind], list):
             if board_state[capt_ind][0] is None:
                 capt_ind += d
                 continue
             elif board_state[capt_ind][0].color == 'b':
+                dest_ind = capt_ind + d
+                while 0 <= dest_ind < len(board_state) and isinstance(board_state[dest_ind], list):
+                    if board_state[dest_ind][0] is None:
+                        holder.append(dest_ind)
+                    else:
+                        break
+                    dest_ind += d
                 break
             else:
-                capmoves.append((capt_ind, piece))
-        if capt_ind >= len(board_state) or isinstance(board_state[capt_ind], list):
-            break
-    return {piece.index: capmoves for piece in capmoves}
+                break
+
+        capmoves.append(tuple(holder))
+
+    return piece.index, capmoves
 
 
-# Example usage:
+board_state = [
+    [Piece('r', -112, is_dama=False), '*'],
+    'X',
+    [None, '/'],
+    'X',
+    [None, '-'],
+    'X',
+    [None, '+'],
+    'X',
+    'X',
+    [Piece('b', 0, is_dama=False), '/'],
+    'X',
+    [None, '*'],
+    'X',
+    [None, '+'],
+    'X',
+    [None, '-'],
+    [None, '-'],
+    'X',
+    [None, '+'],
+    'X',
+    [None, '*'],
+    'X',
+    [Piece('r', -9, is_dama=False), '/'],
+    'X',
+    'X',
+    [None, '+'],
+    'X',
+    [Piece('b', -11, is_dama=False), '-'],
+    'X',
+    [None, '/'],
+    'X',
+    [None, '*'],
+    [Piece('b', 0, is_dama=False), '*'],
+    'X',
+    [Piece('r', -5, is_dama=True), '/'],
+    'X',
+    [None, '-'],
+    'X',
+    [None, '+'],
+    'X',
+    'X',
+    [None, '/'],
+    'X',
+    [Piece('b', -5, is_dama=True), '*'],
+    'X',
+    [None, '+'],
+    'X',
+    [None, '-'],
+    [None, '-'],
+    'X',
+    [None, '+'],
+    'X',
+    [None, '*'],
+    'X',
+    [Piece('b', 6, is_dama=False), '/'],
+    'X',
+    'X',
+    [None, '+'],
+    'X',
+    [None, '-'],
+    'X',
+    [None, '/'],
+    'X',
+    [Piece('r', 6, is_dama=False), '*']
+]
+
 print(func7(board_state))

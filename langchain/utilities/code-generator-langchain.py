@@ -315,10 +315,10 @@ def formatOutput(response, name):
     if match:
         python_code = match.group(1)
 
-        with open(f"{name}.py", "w") as file:
+        with open(f"./utilities/{name}.py", "w") as file:
             file.write(python_code)
 
-        print(f"Python code extracted and saved to '{name}.py'.")
+        print(f"Python code extracted and saved to './utilities/{name}.py'.")
     else:
         print("No Python code block found in the provided output.")
 
