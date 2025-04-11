@@ -1,7 +1,6 @@
 # Notes
 # uvicorn app.main:app --reload
 # https://stackoverflow.com/questions/53380988/how-to-execute-shell-script-from-flask-app/53381744#53381744
-# ../utilities/ sa scripts
 # to change the problem in the engine
 import subprocess
 from subprocess import check_output
@@ -38,7 +37,11 @@ class BoardRequest(BaseModel):
 @app.post("/generate_code")
 def generate_code(request: StartRequest):
     if request.start:
-        return {"code": "ABC123", "status": "started"}
+        try:
+            subprocess.run(['bash', 'utilities/script.sh'])
+            return {"status": "completed"}
+        except Exception as e:
+            return {"status": "error", "error": str(e)}
     else:
         return {"status": "waiting"}
 

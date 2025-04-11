@@ -27,58 +27,58 @@ values = [
 ]
 
 
-def translate(board_str):
-    board_str = board_str.strip('"\'')
-    pattern = r'Piece\(([rb]), (-?\d+), isdama=(True|False)\)'
+# def translate(board_str):
+#     board_str = board_str.strip('"\'')
+#     pattern = r'Piece\(([rb]), (-?\d+), isdama=(True|False)\)'
 
-    def replace_piece(match):
-        color, value, is_dama = match.groups()
-        piece_dict = {
-            "color": color,
-            "value": int(value),
-            "is_dama": is_dama.lower() == 'true'
-        }
-        return str(piece_dict)
+#     def replace_piece(match):
+#         color, value, is_dama = match.groups()
+#         piece_dict = {
+#             "color": color,
+#             "value": int(value),
+#             "is_dama": is_dama.lower() == 'true'
+#         }
+#         return str(piece_dict)
 
-    board_str = re.sub(pattern, replace_piece, board_str)
-    board = eval(board_str)
-    return board
+#     board_str = re.sub(pattern, replace_piece, board_str)
+#     board = eval(board_str)
+#     return board
 
-def visualize_board(board_state):
-    board_state = translate(board_state)
-    board = []
-    operations = []
+# def visualize_board(board_state):
+#     board_state = translate(board_state)
+#     board = []
+#     operations = []
 
-    for item in board_state:
-        if item == 'X':
-            board.append('X')
-            operations.append('')
-        elif isinstance(item, list):
-            if item[0] is None:
-                board.append('___')
-            else:
-                piece = item[0]
-                value = piece['value'] if isinstance(piece, dict) else piece.value
-                color = piece['color'] if isinstance(piece, dict) else piece.color
-                is_dama = 't' if (isinstance(piece, dict) and piece['is_dama']) else 'f'
-                board.append(f"{value}{color}{is_dama}")
-            operations.append(item[1])
+#     for item in board_state:
+#         if item == 'X':
+#             board.append('X')
+#             operations.append('')
+#         elif isinstance(item, list):
+#             if item[0] is None:
+#                 board.append('___')
+#             else:
+#                 piece = item[0]
+#                 value = piece['value'] if isinstance(piece, dict) else piece.value
+#                 color = piece['color'] if isinstance(piece, dict) else piece.color
+#                 is_dama = 't' if (isinstance(piece, dict) and piece['is_dama']) else 'f'
+#                 board.append(f"{value}{color}{is_dama}")
+#             operations.append(item[1])
 
-    print("\n  Checkers Board Visualization:")
-    print("  " + "-" * 65)
+#     print("\n  Checkers Board Visualization:")
+#     print("  " + "-" * 65)
 
-    for row in range(8):
-        row_items = []
-        for col in range(8):
-            index = row * 8 + col
-            cell = board[index]
-            op = operations[index]
-            row_items.append(f"{op}.{index:2d}.{cell:6}")
-        print(f"{row + 1}|", " ".join(row_items), "|")
+#     for row in range(8):
+#         row_items = []
+#         for col in range(8):
+#             index = row * 8 + col
+#             cell = board[index]
+#             op = operations[index]
+#             row_items.append(f"{op}.{index:2d}.{cell:6}")
+#         print(f"{row + 1}|", " ".join(row_items), "|")
 
-    print("  " + "-" * 65)
-    print("  Format: operation.position.value+color+isdama")
-    print("  r=red, b=black, f=regular piece, t=dama/king")
+#     print("  " + "-" * 65)
+#     print("  Format: operation.position.value+color+isdama")
+#     print("  r=red, b=black, f=regular piece, t=dama/king")
 
 class Board:
     def __init__(self):
@@ -150,11 +150,11 @@ class Piece:
         self.index = None
         self.color = color
         self.is_dama = False
-        self.name = f"{color}, {value}"
+        self.name = f"'{color}', {value}"
         self.capture_index = {}
 
     def __repr__(self):
-        return f"Piece({self.name}, isdama={self.is_dama})"
+        return f"Piece({self.name}, is_dama={self.is_dama})"
 
     def __eq__(self, other):
         return isinstance(other, Piece) and self.name == other.name
@@ -175,7 +175,7 @@ class Game:
         self.move_history = []
         self.scores = {"b": 0, "r": 0}
         self.over = False
-        visualize_board(f"{self.board.board}")
+        # visualize_board(f"{self.board.board}")
 
     def check_all_valid(self, turn):
         self.valid_moves = {}
@@ -435,7 +435,7 @@ class Game:
             if chain_moves:
                 # Chain capture available; force the player to continue capturing.
                 self.valid_moves = {selected_piece: chain_moves}
-                visualize_board(f"{self.board.board}")
+                # visualize_board(f"{self.board.board}")
                 return {
                     "board": json.loads(self.board.to_json())["board"],
                     "scores": self.scores,
@@ -453,7 +453,7 @@ class Game:
         self.dama_mandatory_capture = False
         self.dama_mandatory_capture_check = False
         self.check_all_valid(self.current_move)
-        visualize_board(f"{self.board.board}")
+        # visualize_board(f"{self.board.board}")
 
         return {
             "board": json.loads(self.board.to_json())["board"],
