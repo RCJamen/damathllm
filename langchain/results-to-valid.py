@@ -1,3 +1,5 @@
+import subprocess
+from subprocess import check_output
 from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
 import json
@@ -42,28 +44,28 @@ def reinitialize_board(board_state, new_piece_class):
 def get_valid_moves(test_name, board_state):
     try:
         if test_name == "normal_moves":
-            from normal_moves import func1, Piece
-            import normal_moves
+            from utilities.normal_moves import func1, Piece
+            import utilities.normal_moves
             new_board = reinitialize_board(board_state, Piece)
-            normal_moves.board_state = new_board
+            utilities.normal_moves.board_state = new_board
             result = func1(new_board)
         elif test_name == "dama_moves":
-            from dama_moves import func1, Piece
-            import dama_moves
+            from utilities.dama_moves import func1, Piece
+            import utilities.dama_moves
             new_board = reinitialize_board(board_state, Piece)
-            dama_moves.board_state = new_board
+            utilities.dama_moves.board_state = new_board
             result = func1(new_board)
         elif test_name == "normal_captures":
-            from normal_captures import func5, Piece
-            import normal_captures
+            from utilities.normal_captures import func5, Piece
+            import utilities.normal_captures
             new_board = reinitialize_board(board_state, Piece)
-            normal_captures.board_state = new_board
+            utilities.normal_captures.board_state = new_board
             result = func5(new_board)
         elif test_name == "dama_captures":
-            from dama_captures import func7, Piece
-            import dama_captures
+            from utilities.dama_captures import func7, Piece
+            import utilities.dama_captures
             new_board = reinitialize_board(board_state, Piece)
-            dama_captures.board_state = new_board
+            utilities.dama_captures.board_state = new_board
             result = func7(new_board)
         return result
     except Exception as e:
@@ -133,7 +135,7 @@ for test in ["normal_moves", "dama_moves", "normal_captures", "dama_captures"]:
     'X',
     [None, '*']
 ]
-    
+
     results[test] = get_valid_moves(test, new_board_state)
 
 print("\n\nOriginal results:")
@@ -324,7 +326,7 @@ for key, value in valid_moves.items():
         for destination in destinations:
             if isinstance(destination,tuple):
                 for item in destination:
-                    src_dest_pairs.append([source,item])    
+                    src_dest_pairs.append([source,item])
             else:
                 src_dest_pairs.append([source,destination])
 print("\n\n\n")
@@ -336,15 +338,15 @@ if src_dest_pairs != [] and is_capture:
 
 
     for index, (source, dest) in enumerate(src_dest_pairs):
-        
+
         distance = dest - source
 
         directions = [-7, -9, 7, 9]
         for direction in directions:
-            if distance % direction == 0:  
+            if distance % direction == 0:
                 factor = distance // direction
                 print(f"Direction: {direction}, Multiplied by: {factor}")
-                break 
+                break
 
         enemy=False
         middle = source
@@ -374,7 +376,3 @@ if src_dest_pairs != [] and is_capture:
             src_dest_pairs[index] = (source, dest, score)
 
     print(src_dest_pairs)
-
-
-
-
