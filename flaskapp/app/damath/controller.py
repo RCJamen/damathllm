@@ -58,5 +58,6 @@ def make_move():
 def move_history():
     return jsonify({
         "move_history": game_instance.move_history,
-        "scores": game_instance.scores
+        "scores": game_instance.scores,
+        "current_turn": game_instance.current_move,
     })

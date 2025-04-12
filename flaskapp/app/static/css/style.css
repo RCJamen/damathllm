@@ -73,7 +73,7 @@ main {
     user-select: none;
 }
 
-.higlight {
+.highlight {
     background-color: var(--red) !important;
     border-radius: 70px;
     transition: 0.1s ease-in-out;
@@ -227,4 +227,86 @@ tr {
 .score-display {
     font-size: 28px;
     font-weight: bold;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+}
+
+.modal-content {
+    position: relative;
+    background-color: #040000;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid var(--dark-squares);
+    width: 80%;
+    max-width: 500px;
+    border-radius: 5px;
+    color: var(--dark-squares);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.close-button {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--dark-squares);
+}
+
+.close-button:hover {
+    color: var(--red-man);
+}
+
+.modal-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.modal.show {
+    display: block;
+}
+
+/* Button styles */
+.modal-buttons .btn-secondary {
+    background-color: var(--dark-squares);
+    color: var(--light-squares);
+    border: none;
+}
+
+.modal-buttons .btn-secondary:hover {
+    background-color: var(--red-man);
+}
+
+.modal-buttons .btn-primary {
+    background-color: var(--blue-man);
+    color: var(--light-squares);
+    border: none;
+}
+
+.modal-buttons .btn-primary:hover {
+    background-color: var(--dark-squares);
+}
+
+/* Score display styles */
+.score-display p {
+    margin: 10px 0;
+}
+
+.score-display p:first-child {
+    color: var(--blue-man);
+}
+
+.score-display p:last-child {
+    color: var(--red-man);
 }

@@ -111,6 +111,7 @@
                 <th scope="col">Nr</th>
                 <th scope="col">Blue</th>
                 <th scope="col">Red</th>
+                <th scope="col">Score</th>
               </tr>
             </thead>
           </table>
@@ -121,6 +122,26 @@
           </div>
         </div>
       </div>
+    </div>
+    <div id="gameOverModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="closeModal">&times;</span>
+            <h2 class="text-center">Game Over!</h2>
+            <div class="text-center">
+                <h3>Final Score</h3>
+                <div class="score-display">
+                    <p class="h4"><strong>Blue:</strong> <span id="finalBlueScore"></span></p>
+                    <p class="h4"><strong>Red:</strong> <span id="finalRedScore"></span></p>
+                </div>
+                <div class="winner-display mt-4">
+                    <h4>Winner: <span id="modalWinner"></span></h4>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button id="closeModalBtn" class="btn btn-secondary">Close</button>
+                <button id="newGameModal" class="btn btn-primary">Start New Game</button>
+            </div>
+        </div>
     </div>
   </div>
 </main>

@@ -1,6 +1,32 @@
 let sourceSquare = null;
+const modal = document.getElementById("gameOverModal");
+const closeModalBtn = document.getElementById("closeModalBtn");
+const closeModalX = document.getElementById("closeModal");
+const newGameModalBtn = document.getElementById("newGameModal");
 
-// API Requests
+const showModal = () => {
+  modal.classList.add("show");
+};
+
+const hideModal = () => {
+  modal.classList.remove("show");
+};
+
+window.onclick = (event) => {
+  if (event.target === modal) {
+    hideModal();
+  }
+};
+
+closeModalX.onclick = hideModal;
+closeModalBtn.onclick = hideModal;
+
+newGameModalBtn.onclick = async () => {
+  hideModal();
+  localStorage.clear();
+  await startNewGame();
+};
+
 const startNewGame = async () => {
   $("#blueScore").text("0");
   $("#redScore").text("0");
@@ -11,18 +37,65 @@ const startNewGame = async () => {
   await updateGameState();
 };
 
+const checkGameEnd = () => {
+  if (legalMoves.valid_moves.length === 0) {
+    setTimeout(() => {
+      const blueScore = historyData.scores.b;
+      const redScore = historyData.scores.r;
+      let winner;
+      let winnerColor;
+
+      if (blueScore > redScore) {
+        winner = "Blue";
+        winnerColor = "var(--blue-man)";
+      } else if (redScore > blueScore) {
+        winner = "Red";
+        winnerColor = "var(--red-man)";
+      } else {
+        winner = "Tie";
+        winnerColor = "var(--neutral)";
+      }
+
+      // Update modal content
+      document.getElementById("finalBlueScore").textContent = blueScore;
+      document.getElementById("finalRedScore").textContent = redScore;
+      const modalWinner = document.getElementById("modalWinner");
+      modalWinner.textContent = winner;
+      modalWinner.style.color = winnerColor;
+
+      // Show modal
+      showModal();
+
+      // Remove click listeners
+      document.querySelectorAll(".tile").forEach((tile) => {
+        tile.removeEventListener("click", handleSquareClick);
+      });
+    }, 2000);
+
+    return true;
+  }
+  return false;
+};
+
 const updateGameState = async () => {
   // Get board data
   const response = await fetch("/api/board");
   boardData = await response.json();
+  // Save to localStorage
+  localStorage.setItem("boardState", JSON.stringify(boardData));
+
   // Get valid moves
   const movesResponse = await fetch("/api/valid_moves");
   legalMoves = await movesResponse.json();
+  localStorage.setItem("legalMoves", JSON.stringify(legalMoves));
+
   // Get move history
   const historyResponse = await fetch("/api/move_history");
   historyData = await historyResponse.json();
+  localStorage.setItem("historyData", JSON.stringify(historyData));
 
   updateBoard();
+  checkGameEnd();
 };
 
 const makeMove = async (source, destination) => {
@@ -45,7 +118,6 @@ const makeMove = async (source, destination) => {
     const result = await response.json();
     await updateGameState();
 
-    // Optionally handle the result
     if (result.success) {
       console.log("Move successful");
     } else if (result.error) {
@@ -55,7 +127,6 @@ const makeMove = async (source, destination) => {
     return result;
   } catch (error) {
     console.error("Error making move:", error);
-    // Optionally show error to user
     alert("Failed to make move. Please try again.");
     return { success: false, error: error.message };
   }
@@ -76,11 +147,6 @@ const updateBoard = () => {
     operatorText.textContent = operator;
     tileElement.appendChild(operatorText);
 
-    if (boardData.scores) {
-      $("#blueScore").text(boardData.scores.blue);
-      $("#redScore").text(boardData.scores.red);
-    }
-
     if (tile.piece) {
       const [color, number, isKing] = tile.piece;
 
@@ -100,7 +166,7 @@ const updateBoard = () => {
 
       if (isKing) {
         const crownImg = document.createElement("img");
-        crownImg.src = "/static/images/crown.svg"; // Make sure this path is correct
+        crownImg.src = "/static/img/crown-icon.svg";
         crownImg.alt = "crown";
         crownImg.className = "crown";
         tileElement.appendChild(crownImg);
@@ -108,25 +174,42 @@ const updateBoard = () => {
     }
   });
 
-  updateHistory();
-  $("#turn").text(boardData.turn);
+  updateGameInfo();
 };
 
-const updateHistory = () => {
+const updateGameInfo = () => {
   if (!historyData) return;
+
+  // Update History Table
   let tbody = $("#historyTableBody");
   tbody.empty();
 
   historyData.move_history.forEach((move, index) => {
+    const [color, [from, to], score] = move;
+    const moveText = `${from} → ${to}`;
+
     tbody.append(
       `<tr>
         <td>${index + 1}</td>
-        <td>${move.blue || "-"}</td>
-        <td>${move.red || "-"}</td>
-    </tr>`,
+        <td>${color === "b" ? moveText : "-"}</td>
+        <td>${color === "r" ? moveText : "-"}</td>
+        <td>${score}</td>
+      </tr>`,
     );
   });
   $("#historyContainer").scrollTop($("#historyContainer")[0].scrollHeight);
+
+  // Update Scores and Turn
+  $("#blueScore").text(historyData.scores.b);
+  $("#redScore").text(historyData.scores.r);
+
+  const turnElement = $("#turn");
+  const currentTurn = historyData.current_turn === "b" ? "Blue" : "Red";
+  turnElement.text(currentTurn);
+  turnElement.css(
+    "color",
+    currentTurn === "Blue" ? "var(--blue-man)" : "var(--red-man)",
+  );
 };
 
 // Event Handlers
@@ -135,8 +218,9 @@ const handleSquareClick = async (e) => {
   if (!clickedTile) return;
 
   const tileNumber = parseInt(clickedTile.getAttribute("tile-number"));
+  console.log("Clicked tile number:", tileNumber);
 
-  if (!sourceSquare) {
+  if (sourceSquare === null) {
     const validPieceMove = legalMoves.valid_moves.find(
       (move) => move.piece_index === tileNumber,
     );
@@ -145,18 +229,24 @@ const handleSquareClick = async (e) => {
       sourceSquare = tileNumber;
       clickedTile.classList.add("selected");
       showLegalMoves(validPieceMove.destinations);
+      console.log("Destinations:", validPieceMove.destinations);
     }
   } else {
     const validMove = legalMoves.valid_moves.find(
       (move) => move.piece_index === sourceSquare,
     );
 
-    if (validMove && validMove.destinations.includes(tileNumber)) {
+    const isValidDestination =
+      validMove &&
+      validMove.destinations.some((directionArray) =>
+        Array.isArray(directionArray)
+          ? directionArray.includes(tileNumber)
+          : directionArray === tileNumber,
+      );
+
+    if (isValidDestination) {
       const moveResult = await makeMove(sourceSquare, tileNumber);
-      if (!moveResult.success) {
-        // Handle failed move
-        console.error("Move failed:", moveResult.error);
-      }
+      console.log("Move result:", moveResult);
     }
     clearSelection();
   }
@@ -169,11 +259,25 @@ const showLegalMoves = (destinations) => {
   });
 
   // Show new legal moves
-  if (destinations && destinations.length > 0) {
-    destinations.forEach((movePosition) => {
-      const tile = document.getElementById(`tile-${movePosition}`);
-      if (tile) tile.classList.add("highlight");
-    });
+  if (destinations) {
+    // Handle flat array of destinations
+    if (Array.isArray(destinations) && !Array.isArray(destinations[0])) {
+      destinations.forEach((movePosition) => {
+        const tile = document.getElementById(`tile-${movePosition}`);
+        if (tile) tile.classList.add("highlight");
+      });
+    }
+    // Handle nested arrays of destinations
+    else if (Array.isArray(destinations)) {
+      destinations.forEach((directionArray) => {
+        if (Array.isArray(directionArray)) {
+          directionArray.forEach((movePosition) => {
+            const tile = document.getElementById(`tile-${movePosition}`);
+            if (tile) tile.classList.add("highlight");
+          });
+        }
+      });
+    }
   }
 };
 
@@ -185,12 +289,32 @@ const clearSelection = () => {
 };
 
 // Initialize
-$(document).ready(() => {
-  // Add click handlers to tiles
+$(document).ready(async () => {
+  const savedBoard = localStorage.getItem("boardState");
+  const savedMoves = localStorage.getItem("legalMoves");
+  const savedHistory = localStorage.getItem("historyData");
+
+  if (savedBoard && savedMoves && savedHistory) {
+    boardData = JSON.parse(savedBoard);
+    legalMoves = JSON.parse(savedMoves);
+    historyData = JSON.parse(savedHistory);
+    updateBoard();
+  } else {
+    await updateGameState();
+  }
+
   document.querySelectorAll(".tile").forEach((tile) => {
     tile.addEventListener("click", handleSquareClick);
   });
 
-  // Add click handler to new game button
-  document.getElementById("newGame").addEventListener("click", startNewGame);
+  document.getElementById("newGame").addEventListener("click", async () => {
+    localStorage.clear();
+    await startNewGame();
+  });
+
+  $("#newGameModal").on("click", async () => {
+    $("#gameOverModal").modal("hide");
+    localStorage.clear();
+    await startNewGame();
+  });
 });
