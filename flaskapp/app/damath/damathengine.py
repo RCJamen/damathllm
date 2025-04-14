@@ -26,60 +26,6 @@ values = [
     [0, "-11", 0, "8", 0, "-5", 0, "2"],
 ]
 
-
-# def translate(board_str):
-#     board_str = board_str.strip('"\'')
-#     pattern = r'Piece\(([rb]), (-?\d+), isdama=(True|False)\)'
-
-#     def replace_piece(match):
-#         color, value, is_dama = match.groups()
-#         piece_dict = {
-#             "color": color,
-#             "value": int(value),
-#             "is_dama": is_dama.lower() == 'true'
-#         }
-#         return str(piece_dict)
-
-#     board_str = re.sub(pattern, replace_piece, board_str)
-#     board = eval(board_str)
-#     return board
-
-# def visualize_board(board_state):
-#     board_state = translate(board_state)
-#     board = []
-#     operations = []
-
-#     for item in board_state:
-#         if item == 'X':
-#             board.append('X')
-#             operations.append('')
-#         elif isinstance(item, list):
-#             if item[0] is None:
-#                 board.append('___')
-#             else:
-#                 piece = item[0]
-#                 value = piece['value'] if isinstance(piece, dict) else piece.value
-#                 color = piece['color'] if isinstance(piece, dict) else piece.color
-#                 is_dama = 't' if (isinstance(piece, dict) and piece['is_dama']) else 'f'
-#                 board.append(f"{value}{color}{is_dama}")
-#             operations.append(item[1])
-
-#     print("\n  Checkers Board Visualization:")
-#     print("  " + "-" * 65)
-
-#     for row in range(8):
-#         row_items = []
-#         for col in range(8):
-#             index = row * 8 + col
-#             cell = board[index]
-#             op = operations[index]
-#             row_items.append(f"{op}.{index:2d}.{cell:6}")
-#         print(f"{row + 1}|", " ".join(row_items), "|")
-
-#     print("  " + "-" * 65)
-#     print("  Format: operation.position.value+color+isdama")
-#     print("  r=red, b=black, f=regular piece, t=dama/king")
-
 class Board:
     def __init__(self):
         self.board = []
@@ -175,7 +121,6 @@ class Game:
         self.move_history = []
         self.scores = {"b": 0, "r": 0}
         self.over = False
-        # visualize_board(f"{self.board.board}")
 
     def check_all_valid(self, turn):
         self.valid_moves = {}
@@ -338,7 +283,6 @@ class Game:
         return json.dumps(valid_moves_json)
 
     def api_move(self, piece_index, destination):
-        # Reset mandatory capture flags and re-calculate valid moves.
         self.has_mandatory_capture = False
         self.has_mandatory_capture_check = False
         self.dama_mandatory_capture = False
@@ -372,7 +316,7 @@ class Game:
 
         eaten = False
         score = 0
-        # Process capture moves.
+
         if self.dama_mandatory_capture:
             for key in selected_piece.capture_index:
                 if isinstance(key, tuple) and destination in key:
@@ -415,12 +359,10 @@ class Game:
             self.board.board[index_of_captured_piece][0] = None
             eaten = True
 
-        # Make the move.
         self.board.board[destination][0] = selected_piece
         selected_piece.index = destination
         self.board.board[piece_index][0] = None
 
-        # Promote to dama if on promotion row.
         if (
             selected_piece.index in [0, 2, 4, 6] and selected_piece.color == "b"
             or selected_piece.index in [57, 59, 61, 63] and selected_piece.color == "r"
@@ -429,36 +371,27 @@ class Game:
 
         self.move_history.append((self.current_move, (piece_index, destination), score))
 
-        # If a capture was made, check for additional mandatory captures with the same piece.
         if eaten:
             chain_moves = self.check_valid_moves(selected_piece)
+            print(chain_moves)
             if chain_moves:
-                # Chain capture available; force the player to continue capturing.
                 self.valid_moves = {selected_piece: chain_moves}
-                # visualize_board(f"{self.board.board}")
                 return {
-                    "board": json.loads(self.board.to_json())["board"],
+                    "array_board": f"{self.board}",
                     "scores": self.scores,
                     "current_turn": self.current_move,
-                    "mandatory_chain_capture": True,
-                    "chain_moves": chain_moves,
                     "move_history": self.move_history,
                 }
-        # If no additional capture, switch turn.
         self.current_move = "r" if self.current_move == "b" else "b"
-
-        # Recalculate valid moves for the new turn.
         self.has_mandatory_capture = False
         self.has_mandatory_capture_check = False
         self.dama_mandatory_capture = False
         self.dama_mandatory_capture_check = False
         self.check_all_valid(self.current_move)
-        # visualize_board(f"{self.board.board}")
 
         return {
-            "board": json.loads(self.board.to_json())["board"],
+            "array_board": f"{self.board}",
             "current_turn": self.current_move,
             "scores": self.scores,
             "move_history": self.move_history,
         }
-            # "valid_moves": json.loads(self.valid_moves_to_json())["valid_moves"],
