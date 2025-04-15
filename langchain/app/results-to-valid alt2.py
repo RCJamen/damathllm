@@ -78,72 +78,13 @@ def get_valid_moves(test_name, board_state):
 
 results = {}
 for test in ["normal_moves", "dama_moves", "normal_captures", "dama_captures"]:
-    new_board_state = [
-    [Piece('r', 2, is_dama=False), '*'],
-    'X',
-    [Piece('r', -5, is_dama=False), '/'],
-    'X',
-    [Piece('r', 8, is_dama=False), '-'],
-    'X',
-    [Piece('r', -11, is_dama=False), '+'],
-    'X',
-    'X',
-    [Piece('r', -7, is_dama=False), '/'],
-    'X',
-    [Piece('r', 10, is_dama=False), '*'],
-    'X',
-    [Piece('r', -3, is_dama=False), '+'],
-    'X',
-    [Piece('r', 0, is_dama=False), '-'],
-    [Piece('r', 4, is_dama=False), '-'],
-    'X',
-    [Piece('r', -1, is_dama=False), '+'],
-    'X',
-    [Piece('r', 6, is_dama=False), '*'],
-    'X',
-    [Piece('r', -9, is_dama=False), '/'],
-    'X',
-    'X',
-    [None, '+'],
-    'X',
-    [None, '-'],
-    'X',
-    [None, '/'],
-    'X',
-    [None, '*'],
-    [None, '*'],
-    'X',
-    [None, '/'],
-    'X',
-    [None, '-'],
-    'X',
-    [None, '+'],
-    'X',
-    'X',
-    [Piece('b', -9, is_dama=False), '/'],
-    'X',
-    [Piece('b', 6, is_dama=False), '*'],
-    'X',
-    [Piece('b', -1, is_dama=False), '+'],
-    'X',
-    [Piece('b', 4, is_dama=False), '-'],
-    [Piece('b', 0, is_dama=False), '-'],
-    'X',
-    [Piece('b', -3, is_dama=False), '+'],
-    'X',
-    [Piece('b', 10, is_dama=False), '*'],
-    'X',
-    [Piece('b', -7, is_dama=False), '/'],
-    'X',
-    'X',
-    [Piece('b', -11, is_dama=False), '+'],
-    'X',
-    [Piece('b', 8, is_dama=False), '-'],
-    'X',
-    [Piece('b', -5, is_dama=False), '/'],
-    'X',
-    [Piece('b', 2, is_dama=False), '*']
-]
+    new_board_state = [[None, '*'], 'X', [None, '/'], 'X', [None, '-'], 'X', [None, '+'], 'X', 'X', [None, '/'], 'X', [None, '*'], 'X', 
+              [Piece('r', -11, is_dama=False), '+'], 'X', [Piece('r', 0, is_dama=False), '-'], [None, '-'], 'X', [None, '+'], 'X', 
+              [Piece('r', 6, is_dama=True), '*'], 'X', [Piece('r', -9, is_dama=False), '/'], 'X', 'X', [None, '+'], 'X', [None, '-'], 
+              'X', [None, '/'], 'X', [None, '*'], [Piece('b', 0, is_dama=True), '*'], 'X', [None, '/'], 'X', [None, '-'], 'X', 
+              [None, '+'], 'X', 'X', [None, '/'], 'X', [None, '*'], 'X', [None, '+'], 'X', [None, '-'], [Piece('r', -5, is_dama=True), 
+              '-'], 'X', [None, '+'], 'X', [None, '*'], 'X', [None, '/'], 'X', 'X', [None, '+'], 'X', [None, '-'], 'X', [None, '/'], 
+              'X', [None, '*']]
     
     results[test] = get_valid_moves(test, new_board_state)
 
@@ -175,9 +116,13 @@ results = clean_dict(results)
 print("\n\nCleaned results:")
 print(results)
 
+if "dama_captures" in results.keys() or "normal_captures" in results.keys():
+    is_capture = True
+else:
+    is_capture = False
 
 
-parser_prompt_part1 = ChatPromptTemplate.from_template("""
+move_template = ChatPromptTemplate.from_template("""
 You are given a dictionary named "results" that contains only two keys: "normal_moves" and "dama_moves".
 
 Each of these keys maps to a dictionary:
@@ -187,9 +132,9 @@ Each of these keys maps to a dictionary:
 Your task is:
 1. Ignore the top-level keys ("normal_moves" and "dama_moves") and work only with their inner dictionaries.
 2. Merge the two inner dictionaries into one:
-   - For each shared key, combine the values from both.
-     - Flatten all tuples in "dama_moves" values into one list of integers before merging.
-     - If a key only exists in one of the dictionaries, use its value directly.
+    - For each shared key, keep the value from the "dama_moves".
+    - Flatten all tuples in "dama_moves" values into one list of integers before merging.
+    - If a key only exists in one of the dictionaries, use its value directly.
 3. The final result should be a JSON object with a single key "moves", whose value is the merged dictionary.
 4. All keys in the final dictionary should be strings.
 
@@ -199,64 +144,108 @@ Here is the results dictionary:
 Return only the final JSON with key "moves".
 """)
 
+determiner_template = ChatPromptTemplate.from_template("""
+You are given a dictionary named "results". Follow the steps provided.
+
+If the "dama_captures" key is present, keep the key and their values, removing other keys (such as "normal_captures", "normal_moves" and/or "dama_moves").
+Else, if "normal_captures" key is present but not "dama_captures", keep the "normal_captures" key, removing other keys (such as "normal_moves" and/or "dama_moves").
+
+Here is the results dictionary:
+{results}
+
+Return a Python dictionary ONLY in string format.                                                 
+
+""")
+
+capture_template = ChatPromptTemplate.from_template("""
+You are given a dictionary named "results" that contains either only two keys: "normal_captures" and "dama_captures".
+
+Each of these keys maps to a dictionary:
+- In "normal_captures", keys are integers, and values are lists of integers.
+- In "dama_captures", keys are integers, and values are lists of tuples of integers.
+
+Your task is:
+1. Ignore the top-level keys ("normal_captures" and "dama_captures") and work only with their inner dictionaries.
+2. Choose one of the two inner dictionaries:
+     - If "dama_captures" has a value aside from an empty dictionary, flatten the tuples in the value, and keep this value as the remaining dictionary.
+     - Else, keep the "normal_captures" value which is a dictionary.
+3. The final result should be a JSON object with a single key "captures", whose value is the remaining dictionary.
+4. All keys in the final dictionary should be strings.
+
+Here is the results dictionary:
+{results}
+
+Return only the final JSON with key "captures".
+""")
 
 
-
-results_to_valid_llm_part1 = ChatOllama(
+llm = ChatOllama(
     model="llama3.1:8b-instruct-fp16",
     temperature=0,
     format="json",
 )
 
-chain_part1 = parser_prompt_part1 | results_to_valid_llm_part1
+if is_capture:
 
-response_part1 = chain_part1.invoke({
-    "results": results,
-})
+    determiner_chain = determiner_template | llm 
+    capture_chain = capture_template | llm
 
+    response = determiner_chain.invoke({
+        "results": results,
+    })
+
+    response = capture_chain.invoke({
+        "results": response.content.rstrip()
+    })
+else:
+    move_chain = move_template | llm
+
+    response = move_chain.invoke({
+        "results": results,
+    }) 
 
 # filtered_results = json.loads(response_part1.content)
-filtered_results = response_part1.content
+filtered_results = response.content
 print("\n\nFiltered (Intermediate) Results:")
 print(filtered_results, type(filtered_results))
 
-parser_prompt_part2 = ChatPromptTemplate.from_template("""
-You are provided with a filtered dictionary named "filtered_results" that contains either capture data (with keys "normal_captures" and "dama_captures")
-or move data (with keys "normal_moves" and "dama_moves").
+# parser_prompt_part2 = ChatPromptTemplate.from_template("""
+# You are provided with a filtered dictionary named "filtered_results" that contains either capture data (with keys "normal_captures" and "dama_captures")
+# or move data (with keys "normal_moves" and "dama_moves").
 
-Perform the following steps:
-1. For each key present in the dictionaries:
-   - If "filtered_results" contains capture data:
-      a. If both "normal_captures" and "dama_captures" have non-empty values, use the values from "dama_captures" only.
-      b. If only one dictionary has a non-empty value for that key, use that value.
-      c. Remove the keys "normal_captures" and "dama_captures"
-   - Otherwise, if "filtered_results" contains move data:
-      a. Keep the value ONLY of the "dama_moves" key.
-      b. With the value of the "normal_moves", get the key-value pairs and add it to the value of the "dama_moves" UNLESS the key already exists in the "dama_moves".
-      c. Let's call this the "merged data". Remove the keys "normal_moves" and "dama_moves".
-2. Return the final JSON output with:
-   - If the input was capture data, return {{{{"captures": {{ ...merged data... }}}}}}
-   - If the input was move data, return {{{{"moves": {{ ...merged data... }}}}}}
-   - 
+# Perform the following steps:
+# 1. For each key present in the dictionaries:
+#    - If "filtered_results" contains capture data:
+#       a. If both "normal_captures" and "dama_captures" have non-empty values, use the values from "dama_captures" only.
+#       b. If only one dictionary has a non-empty value for that key, use that value.
+#       c. Remove the keys "normal_captures" and "dama_captures"
+#    - Otherwise, if "filtered_results" contains move data:
+#       a. Keep the value ONLY of the "dama_moves" key.
+#       b. With the value of the "normal_moves", get the key-value pairs and add it to the value of the "dama_moves" UNLESS the key already exists in the "dama_moves".
+#       c. Let's call this the "merged data". Remove the keys "normal_moves" and "dama_moves".
+# 2. Return the final JSON output with:
+#    - If the input was capture data, return {{{{"captures": {{ ...merged data... }}}}}}
+#    - If the input was move data, return {{{{"moves": {{ ...merged data... }}}}}}
+#    - 
 
-Here are the filtered_results:
-{filtered_results}
+# Here are the filtered_results:
+# {filtered_results}
 
-Remember: Return the final JSON output ONLY. Do not return a code. 
-""")
+# Remember: Return the final JSON output ONLY. Do not return a code. 
+# """)
 
 
-results_to_valid_llm_part2 = ChatOllama(
-    model="llama3.2:3b-instruct-fp16",
-    temperature=0,
-    format="json",    
-)
+# results_to_valid_llm_part2 = ChatOllama(
+#     model="llama3.2:3b-instruct-fp16",
+#     temperature=0,
+#     format="json",    
+# )
 
-chain_part2 = parser_prompt_part2 | results_to_valid_llm_part2
+# chain_part2 = parser_prompt_part2 | results_to_valid_llm_part2
 
-response_part2 = chain_part2.invoke({
-    "filtered_results": filtered_results,
-})
+# response_part2 = chain_part2.invoke({
+#     "filtered_results": filtered_results,
+# })
 
 
 # final_results = re.sub(r"<think>.*?</think>\n?", "", response_part2.content, flags=re.DOTALL)
@@ -266,7 +255,7 @@ import ast
 
 # final_results = ast.literal_eval(final_results)
 
-final_results = json.loads(response_part2.content)
+final_results = json.loads(filtered_results)
 valid_moves = final_results
 print("Final Valid Moves:")
 print(valid_moves)

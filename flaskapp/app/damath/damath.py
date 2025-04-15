@@ -188,7 +188,7 @@ class Piece:
         self.value = value
         self.index = None
         self.color = color
-        self.is_dama = False
+        self.is_dama = is_dama
         self.name = f"{color}, {value}"
         self.capture_index = {}
 
@@ -252,8 +252,72 @@ class Game:
         #     print(x)
 
         # USE THIS
-        x = """[[Piece('r', 2, is_dama=False), '*'], 'X', [Piece('r', -5, is_dama=False), '/'], 'X', [None, '-'], 'X', [Piece('r', -11, is_dama=False), '+'], 'X', 'X', [None, '/'], 'X', [Piece('r', 8, is_dama=False), '*'], 'X', [None, '+'], 'X', [Piece('r', 0, is_dama=False), '-'], [None, '-'], 'X', [None, '+'], 'X', [None, '*'], 'X', [None, '/'], 'X', 'X', [None, '+'], 'X', [None, '-'], 'X', [None, '/'], 'X', [Piece('b', -1, is_dama=False), '*'], [Piece('r', -7, is_dama=False), '*'], 'X', [None, '/'], 'X', [None, '-'], 'X', [None, '+'], 'X', 'X', [None, '/'], 'X', [Piece('r', -9, is_dama=False), '*'], 'X', [None, '+'], 'X', [Piece('b', 4, is_dama=False), '-'], [Piece('b', 0, is_dama=False), '-'], 'X', [None, '+'], 'X', [Piece('b', -5, is_dama=False), '*'], 'X', [Piece('b', -7, is_dama=False), '/'], 'X', 'X', [None, '+'], 'X', [None, '-'], 'X', [None, '/'], 'X', [Piece('b', 2, is_dama=False), '*']]"""
-
+        x = """[
+    [Piece('r', -112, is_dama=False), '*'],
+    'X',
+    [None, '/'],
+    'X',
+    [None, '-'],
+    'X',
+    [None, '+'],
+    'X',
+    'X',
+    [Piece('b', 0, is_dama=False), '/'],
+    'X',
+    [None, '*'],
+    'X',
+    [None, '+'],
+    'X',
+    [None, '-'],
+    [None, '-'],
+    'X',
+    [None, '+'],
+    'X',
+    [None, '*'],
+    'X',
+    [Piece('r', -9, is_dama=False), '/'],
+    'X',
+    'X',
+    [None, '+'],
+    'X',
+    [Piece('b', -11, is_dama=False), '-'],
+    'X',
+    [None, '/'],
+    'X',
+    [None, '*'],
+    [Piece('b', 0, is_dama=False), '*'],
+    'X',
+    [Piece('r', -5, is_dama=True), '/'],
+    'X',
+    [None, '-'],
+    'X',
+    [None, '+'],
+    'X',
+    'X',
+    [None, '/'],
+    'X',
+    [Piece('b', -5, is_dama=True), '*'],
+    'X',
+    [None, '+'],
+    'X',
+    [None, '-'],
+    [None, '-'],
+    'X',
+    [None, '+'],
+    'X',
+    [None, '*'],
+    'X',
+    [Piece('b', 6, is_dama=False), '/'],
+    'X',
+    'X',
+    [None, '+'],
+    'X',
+    [None, '-'],
+    'X',
+    [None, '/'],
+    'X',
+    [Piece('r', 6, is_dama=False), '*']
+]"""
         self.board.board = eval(f"{x}")
         for index, item in enumerate(self.board.board):
             # print(index, item)

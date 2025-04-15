@@ -176,7 +176,12 @@ print("\n\nCleaned results:")
 print(results)
 
 is_capture = False
-if "normal_captures" in results.keys() or "dama_captures" in results.keys():
+if "dama_captures" in results.keys():
+    results.pop("normal_captures", None)
+    results.pop("normal_moves", None)
+    results.pop("dama_moves", None)
+    is_capture = True
+elif "normal_captures" in results.keys():
     results.pop("normal_moves", None)
     results.pop("dama_moves", None)
     is_capture = True
