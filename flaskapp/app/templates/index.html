@@ -1,7 +1,8 @@
 <!-- extends base.html -->
 {% extends "base.html" %} {% block content %}
 <main>
-  <div class="row h-100">
+    <div id="cover-spin"></div>
+    <div class="row h-100">
     <div class="col-3 rounded p-5">
       <div class="row">
         <div class="col-12">
@@ -15,9 +16,13 @@
         <button id="newGame" class="col-12 btn btn-custom mt-3">
             Start New Game
         </button>
-        <button id="randomPos" class="col-12 btn btn-custom mt-3">
-          Set random position
+        <button id="clearBoard" class="col-12 btn btn-custom mt-3">
+          Clear Board Pieces
         </button>
+        <!-- <button id="randomPos" class="col-12 btn btn-custom mt-3">
+          Set random position
+        </button> -->
+        
         <!-- Chat -->
         <hr class="col-12 bg-secondary" />
     </div>

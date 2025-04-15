@@ -28,14 +28,50 @@ newGameModalBtn.onclick = async () => {
 };
 
 const startNewGame = async () => {
+  $("#cover-spin").show();
   $("#blueScore").text("0");
   $("#redScore").text("0");
   $("#turn").text("Blue");
+
   await fetch("/api/new_game", {
     method: "POST",
   });
+
   await updateGameState();
+
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  $("#cover-spin").hide();
 };
+
+const clearBoard = async () => {
+  // Clear boardData
+  boardData = {
+    board: [],
+  };
+
+  // Clear localStorage (optional depending on use-case)
+  localStorage.removeItem("boardState");
+  localStorage.removeItem("legalMoves");
+  localStorage.removeItem("historyData");
+
+  // Clear visual board
+  document.querySelectorAll(".tile").forEach((tile) => {
+    tile.innerHTML = "";
+    tile.classList.remove("selected", "highlight");
+  });
+
+  // Clear score and turn indicators
+  $("#blueScore").text("0");
+  $("#redScore").text("0");
+  $("#turn").text("-");
+  $("#turn").css("color", "inherit");
+
+  // Clear move history
+  $("#historyTableBody").empty();
+  $("#historyContainer").scrollTop(0);
+};
+
 
 const checkGameEnd = () => {
   if (legalMoves.valid_moves.length === 0) {
@@ -310,6 +346,11 @@ $(document).ready(async () => {
   document.getElementById("newGame").addEventListener("click", async () => {
     localStorage.clear();
     await startNewGame();
+  });
+
+  document.getElementById("clearBoard").addEventListener("click", async () => {
+    localStorage.clear();
+    await clearBoard();
   });
 
   $("#newGameModal").on("click", async () => {

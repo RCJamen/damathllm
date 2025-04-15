@@ -373,7 +373,6 @@ class Game:
 
         if eaten:
             chain_moves = self.check_valid_moves(selected_piece)
-            print(chain_moves)
             if chain_moves:
                 self.valid_moves = {selected_piece: chain_moves}
                 return {
