@@ -97,12 +97,12 @@ def clean_dict(data):
         cleaned = {}
         for key, value in data.items():
             cleaned_value = clean_dict(value)
-            if cleaned_value:  
+            if cleaned_value:
                 cleaned[key] = cleaned_value
         return cleaned
     elif isinstance(data, list):
         cleaned_list = [clean_dict(item) for item in data if item not in ([], ())]
-        return [item for item in cleaned_list if item != {}]  
+        return [item for item in cleaned_list if item != {}]
     elif isinstance(data, tuple):
         cleaned_tuple = tuple(item for item in data if item not in ([], ()))
         return cleaned_tuple if cleaned_tuple else None
@@ -170,7 +170,7 @@ def board_to_move(request: BoardRequest):
     Here is the results dictionary:
     {results}
 
-    Return a Python dictionary ONLY in string format.                                                 
+    Return a Python dictionary ONLY in string format.
 
     """)
 
@@ -203,7 +203,7 @@ def board_to_move(request: BoardRequest):
     )
 
     if is_capture:
-        determiner_chain = determiner_template | llm 
+        determiner_chain = determiner_template | llm
         capture_chain = capture_template | llm
 
         response = determiner_chain.invoke({
@@ -218,7 +218,7 @@ def board_to_move(request: BoardRequest):
 
         response = move_chain.invoke({
             "results": results,
-        }) 
+        })
 
     filtered_results = response.content
     final_results = json.loads(filtered_results)
@@ -238,7 +238,7 @@ def board_to_move(request: BoardRequest):
             for destination in destinations:
                 if isinstance(destination, tuple) or isinstance(destination, list):
                     for item in destination:
-                        src_dest_pairs.append([source,item])    
+                        src_dest_pairs.append([source,item])
                 else:
                     src_dest_pairs.append([source,destination])
 
@@ -252,12 +252,12 @@ def board_to_move(request: BoardRequest):
             distance = dest - source
             directions = [-7, -9, 7, 9]
             for direction in directions:
-                if distance % direction == 0:  
+                if distance % direction == 0:
                     factor = distance // direction
                     if factor < 0:
                         direction = abs(direction)
                     print(f"Direction: {direction}, Multiplied by: {factor}")
-                    break 
+                    break
 
             enemy=False
             middle = source
@@ -286,12 +286,9 @@ def board_to_move(request: BoardRequest):
 
                 src_dest_pairs[index] = (source, dest, score)
         print(src_dest_pairs)
-        
+
         # source, destination, score = chosen_list # di paman gud ni need ang score ron since i randomize sa nato.
 
         # so sako nasabtan, ang i return dari dapat kay ang move na mismo? di ko sure unsay json na format pero dapat src ug destination ra
-        url = FLASK_BASE_URL + "/board_to_move"
-        payload = {"board": board}
-        requests.post(url, json=payload)
 
     return {"source": chosen_piece_src, "destination": chosen_piece_dest}

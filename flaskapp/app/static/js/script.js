@@ -39,39 +39,33 @@ const startNewGame = async () => {
 
   await updateGameState();
 
-  await new Promise(resolve => setTimeout(resolve, 3000));
+  await new Promise((resolve) => setTimeout(resolve, 3000));
 
   $("#cover-spin").hide();
 };
 
 const clearBoard = async () => {
-  // Clear boardData
   boardData = {
     board: [],
   };
 
-  // Clear localStorage (optional depending on use-case)
   localStorage.removeItem("boardState");
   localStorage.removeItem("legalMoves");
   localStorage.removeItem("historyData");
 
-  // Clear visual board
   document.querySelectorAll(".tile").forEach((tile) => {
     tile.innerHTML = "";
     tile.classList.remove("selected", "highlight");
   });
 
-  // Clear score and turn indicators
   $("#blueScore").text("0");
   $("#redScore").text("0");
   $("#turn").text("-");
   $("#turn").css("color", "inherit");
 
-  // Clear move history
   $("#historyTableBody").empty();
   $("#historyContainer").scrollTop(0);
 };
-
 
 const checkGameEnd = () => {
   if (legalMoves.valid_moves.length === 0) {
@@ -92,17 +86,14 @@ const checkGameEnd = () => {
         winnerColor = "var(--neutral)";
       }
 
-      // Update modal content
       document.getElementById("finalBlueScore").textContent = blueScore;
       document.getElementById("finalRedScore").textContent = redScore;
       const modalWinner = document.getElementById("modalWinner");
       modalWinner.textContent = winner;
       modalWinner.style.color = winnerColor;
 
-      // Show modal
       showModal();
 
-      // Remove click listeners
       document.querySelectorAll(".tile").forEach((tile) => {
         tile.removeEventListener("click", handleSquareClick);
       });
@@ -114,28 +105,30 @@ const checkGameEnd = () => {
 };
 
 const updateGameState = async () => {
-  // Get board data
   const response = await fetch("/api/board");
   boardData = await response.json();
-  // Save to localStorage
   localStorage.setItem("boardState", JSON.stringify(boardData));
 
-  // Get valid moves
   const movesResponse = await fetch("/api/valid_moves");
   legalMoves = await movesResponse.json();
   localStorage.setItem("legalMoves", JSON.stringify(legalMoves));
 
-  // Get move history
   const historyResponse = await fetch("/api/move_history");
   historyData = await historyResponse.json();
   localStorage.setItem("historyData", JSON.stringify(historyData));
 
   updateBoard();
+
+  if (historyData.current_turn === "r" && legalMoves.valid_moves.length > 0) {
+    setTimeout(async () => {
+      await makeRedMove();
+    }, 500);
+  }
+
   checkGameEnd();
 };
 
 const makeMove = async (source, destination) => {
-  // await updateGameState();
   try {
     const response = await fetch("/api/move", {
       method: "POST",
@@ -216,7 +209,6 @@ const updateBoard = () => {
 const updateGameInfo = () => {
   if (!historyData) return;
 
-  // Update History Table
   let tbody = $("#historyTableBody");
   tbody.empty();
 
@@ -235,7 +227,6 @@ const updateGameInfo = () => {
   });
   $("#historyContainer").scrollTop($("#historyContainer")[0].scrollHeight);
 
-  // Update Scores and Turn
   $("#blueScore").text(historyData.scores.b);
   $("#redScore").text(historyData.scores.r);
 
@@ -248,8 +239,12 @@ const updateGameInfo = () => {
   );
 };
 
-// Event Handlers
 const handleSquareClick = async (e) => {
+  if (historyData.current_turn !== "b") {
+    console.log("Not your turn - waiting for Red (AI) to move");
+    return;
+  }
+
   const clickedTile = e.target.closest(".tile");
   if (!clickedTile) return;
 
@@ -283,28 +278,62 @@ const handleSquareClick = async (e) => {
     if (isValidDestination) {
       const moveResult = await makeMove(sourceSquare, tileNumber);
       console.log("Move result:", moveResult);
+
+      if (moveResult.success && historyData.current_turn === "r") {
+        await makeRedMove();
+      }
     }
     clearSelection();
   }
 };
 
+const makeRedMove = async () => {
+  $("#cover-spin").show();
+
+  const currentBoard = boardData.array_board;
+
+  const aiResponse = await fetch("/api/proxy_ai_move", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      board: currentBoard,
+    }),
+  });
+
+  if (!aiResponse.ok) {
+    throw new Error(`HTTP error! status: ${aiResponse.status}`);
+  }
+
+  const aiResult = await aiResponse.json();
+  console.log("AI recommended move:", aiResult);
+
+  const source = aiResult.source;
+  const destination = aiResult.destination;
+
+  const moveResult = await makeMove(source, destination);
+
+  await updateGameState();
+
+  await new Promise((resolve) => setTimeout(resolve, 3000));
+
+  $("#cover-spin").hide();
+  return moveResult;
+};
+
 const showLegalMoves = (destinations) => {
-  // Clear previous highlights
   document.querySelectorAll(".highlight").forEach((tile) => {
     tile.classList.remove("highlight");
   });
 
-  // Show new legal moves
   if (destinations) {
-    // Handle flat array of destinations
     if (Array.isArray(destinations) && !Array.isArray(destinations[0])) {
       destinations.forEach((movePosition) => {
         const tile = document.getElementById(`tile-${movePosition}`);
         if (tile) tile.classList.add("highlight");
       });
-    }
-    // Handle nested arrays of destinations
-    else if (Array.isArray(destinations)) {
+    } else if (Array.isArray(destinations)) {
       destinations.forEach((directionArray) => {
         if (Array.isArray(directionArray)) {
           directionArray.forEach((movePosition) => {
@@ -324,7 +353,6 @@ const clearSelection = () => {
   });
 };
 
-// Initialize
 $(document).ready(async () => {
   const savedBoard = localStorage.getItem("boardState");
   const savedMoves = localStorage.getItem("legalMoves");

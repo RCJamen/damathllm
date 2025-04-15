@@ -20,18 +20,14 @@ def index():
 def new_game():
     global game_instance
     game_instance = Game()
-
-    url = FASTAPI_BASE_URL + "/generate_code"
-    payload = {"start": True}
-
     try:
+        url = FASTAPI_BASE_URL + "/generate_code"
+        payload = {"start": True}
         response = requests.post(url, json=payload)
         response.raise_for_status()
         return jsonify(response.json())
     except requests.exceptions.RequestException as e:
         return jsonify({'error': str(e)}), 500
-
-    # return jsonify({"message": "New game started."})
 
 @damath.route('/api/board', methods=['GET'])
 def get_board():
@@ -42,9 +38,6 @@ def get_valid_moves():
     game_instance.check_all_valid(game_instance.current_move)
     return game_instance.valid_moves_to_json()
 
-
-# http://127.0.0.1:5000/api/move
-# add for red
 @damath.route('/api/move', methods=['POST'])
 def make_move():
     data = request.get_json()
@@ -62,3 +55,15 @@ def move_history():
         "scores": game_instance.scores,
         "current_turn": game_instance.current_move,
     })
+
+@damath.route('/api/proxy_ai_move', methods=['POST'])
+def proxy_ai_move():
+    try:
+        data = request.json
+        ai_response = requests.post(f'{FASTAPI_BASE_URL}/board_to_move', json=data)
+        ai_response.raise_for_status()
+        return jsonify(ai_response.json())
+    except requests.exceptions.RequestException as e:
+        return jsonify({'error': f'Error connecting to AI service: {str(e)}'}), 503
+    except Exception as e:
+        return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
