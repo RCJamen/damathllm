@@ -31,7 +31,7 @@ def new_game():
     except requests.exceptions.RequestException as e:
         return jsonify({'error': str(e)}), 500
 
-    return jsonify({"message": "New game started."})
+    # return jsonify({"message": "New game started."})
 
 @damath.route('/api/board', methods=['GET'])
 def get_board():
@@ -41,6 +41,7 @@ def get_board():
 def get_valid_moves():
     game_instance.check_all_valid(game_instance.current_move)
     return game_instance.valid_moves_to_json()
+
 
 # http://127.0.0.1:5000/api/move
 # add for red

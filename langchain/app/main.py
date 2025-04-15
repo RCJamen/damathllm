@@ -1,6 +1,9 @@
 import subprocess
 import json
 import re
+import ast
+import random
+import requests
 from subprocess import check_output
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -8,6 +11,8 @@ from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
 
 app = FastAPI()
+
+FLASK_BASE_URL = "http://127.0.0.1:5000"
 
 # --- Data Models and Helper Classes ---
 class Piece:
@@ -92,21 +97,18 @@ def clean_dict(data):
         cleaned = {}
         for key, value in data.items():
             cleaned_value = clean_dict(value)
-            if cleaned_value:
+            if cleaned_value:  
                 cleaned[key] = cleaned_value
-            elif key in ["normal_moves", "dama_moves", "normal_captures", "dama_captures"]:
-                cleaned[key] = {}
         return cleaned
     elif isinstance(data, list):
         cleaned_list = [clean_dict(item) for item in data if item not in ([], ())]
-        return [item for item in cleaned_list if item != {}]  # remove empty dicts
+        return [item for item in cleaned_list if item != {}]  
     elif isinstance(data, tuple):
         cleaned_tuple = tuple(item for item in data if item not in ([], ()))
         return cleaned_tuple if cleaned_tuple else None
     return data
 
 # --- Endpoints ---
-
 @app.post("/generate_code")
 def generate_code(request: StartRequest):
     if request.start:
@@ -125,176 +127,171 @@ def board_to_move(request: BoardRequest):
     except Exception as e:
         return {"status": "error", "error": f"Invalid board format: {str(e)}"}
 
-    # Process each test condition.
     results = {}
-    # Using the provided board state for each test.
+
     for test in ["normal_moves", "dama_moves", "normal_captures", "dama_captures"]:
         results[test] = get_valid_moves(test, board_state)
 
-    # Clean the results from any empty dictionaries.
     results = clean_dict(results)
 
-    # ----- PART 1: Choose which set of data to return -----
-    parser_prompt_part1 = ChatPromptTemplate.from_template(
-        """
-You are given a dictionary named "results" with a classification for the following keys:
-1. "normal_moves" and "dama_moves" dictionaries belong to 'move data', while
-2. "normal_captures" and "dama_captures" dictionaries belong to 'capture data'
+    if "dama_captures" in results.keys() or "normal_captures" in results.keys():
+        is_capture = True
+    else:
+        is_capture = False
 
-Your task is to choose which set of data to return.
+    move_template = ChatPromptTemplate.from_template("""
+    You are given a dictionary named "results" that contains only two keys: "normal_moves" and "dama_moves".
 
-Steps:
-1. If any key in either capture dictionary is not empty, choose the capture data.
-2. Otherwise, if all dictionaries in both capture dictionaries are empty, choose the move data.
+    Each of these keys maps to a dictionary:
+    - In "normal_moves", keys are integers, and values are lists of integers.
+    - In "dama_moves", keys are integers, and values are lists of tuples of integers.
 
-Return a JSON result using the original data without any filtering, in one of the following forms:
+    Your task is:
+    1. Ignore the top-level keys ("normal_moves" and "dama_moves") and work only with their inner dictionaries.
+    2. Merge the two inner dictionaries into one:
+        - For each shared key, keep the value from the "dama_moves".
+        - Flatten all tuples in "dama_moves" values into one list of integers before merging.
+        - If a key only exists in one of the dictionaries, use its value directly.
+    3. The final result should be a JSON object with a single key "moves", whose value is the merged dictionary.
+    4. All keys in the final dictionary should be strings.
 
-If capture data is chosen:
-{
-    "captures": {
-        "normal_captures": { ... original normal_captures ... },
-        "dama_captures": { ... original dama_captures ... }
-    }
-}
+    Here is the results dictionary:
+    {results}
 
-If move data is chosen:
-{
-    "moves": {
-        "normal_moves": { ... original normal_moves ... },
-        "dama_moves": { ... original dama_moves ... }
-    }
-}
+    Return only the final JSON with key "moves".
+    """)
 
-The original dictionaries must be followed strictly.
+    determiner_template = ChatPromptTemplate.from_template("""
+    You are given a dictionary named "results". Follow the steps provided.
 
-For example, given these results:
-{results}
+    If the "dama_captures" key is present, keep the key and their values, removing other keys (such as "normal_captures", "normal_moves" and/or "dama_moves").
+    Else, if "normal_captures" key is present but not "dama_captures", keep the "normal_captures" key, removing other keys (such as "normal_moves" and/or "dama_moves").
 
-REMEMBER: Return a pure-JSON format result ONLY. Do NOT return in a markdown-style code block format.
-"""
-    )
+    Here is the results dictionary:
+    {results}
 
-    results_to_valid_llm_part1 = ChatOllama(
-        model="gemma3:12b-it-q8_0",
+    Return a Python dictionary ONLY in string format.                                                 
+
+    """)
+
+    capture_template = ChatPromptTemplate.from_template("""
+    You are given a dictionary named "results" that contains either only two keys: "normal_captures" and "dama_captures".
+
+    Each of these keys maps to a dictionary:
+    - In "normal_captures", keys are integers, and values are lists of integers.
+    - In "dama_captures", keys are integers, and values are lists of tuples of integers.
+
+    Your task is:
+    1. Ignore the top-level keys ("normal_captures" and "dama_captures") and work only with their inner dictionaries.
+    2. Choose one of the two inner dictionaries:
+        - If "dama_captures" has a value aside from an empty dictionary, flatten the tuples in the value, and keep this value as the remaining dictionary.
+        - Else, keep the "normal_captures" value which is a dictionary.
+    3. The final result should be a JSON object with a single key "captures", whose value is the remaining dictionary.
+    4. All keys in the final dictionary should be strings.
+
+    Here is the results dictionary:
+    {results}
+
+    Return only the final JSON with key "captures".
+    """)
+
+
+    llm = ChatOllama(
+        model="llama3.1:8b-instruct-fp16",
         temperature=0,
-        format="json"
+        format="json",
     )
 
-    chain_part1 = parser_prompt_part1 | results_to_valid_llm_part1
+    if is_capture:
+        determiner_chain = determiner_template | llm 
+        capture_chain = capture_template | llm
 
-    response_part1 = chain_part1.invoke({
-        "results": results,
-    })
+        response = determiner_chain.invoke({
+            "results": results,
+        })
 
-    try:
-        filtered_results = json.loads(response_part1.content)
-    except Exception as e:
-        return {"status": "error", "error": "Failed to parse chain part 1 response."}
+        response = capture_chain.invoke({
+            "results": response.content.rstrip()
+        })
+    else:
+        move_chain = move_template | llm
 
-    # ----- PART 2: Process the filtered results -----
-    parser_prompt_part2 = ChatPromptTemplate.from_template(
-        """
-You are provided with a filtered dictionary named "filtered_results" that contains either capture data (with keys "normal_captures" and "dama_captures")
-or move data (with keys "normal_moves" and "dama_moves").
+        response = move_chain.invoke({
+            "results": results,
+        }) 
 
-Perform the following steps:
-1. For each key present in the dictionaries:
-   - If "filtered_results" contains capture data:
-      a. If both "normal_captures" and "dama_captures" have non-empty values, use the values from "dama_captures" only.
-      b. If only one dictionary has a non-empty value for that key, use that value.
-   - Otherwise, if "filtered_results" contains move data:
-      a. Keep the value ONLY of the "dama_moves" key.
-      b. With the value of the "normal_moves", get the key-value pairs and add it to the value of the "dama_moves" UNLESS the key already exists in the "dama_moves".
-      c. Let's call this the "merged data".
-      d. Remove the "dama_moves" key, because "merged_data" will be used in the next step.
-2. Return the final JSON output with:
-   - If the input was capture data, return {"captures": { ...merged data... }}
-   - If the input was move data, return {"moves": { ...merged data... }}
-
-Here are the filtered_results:
-{filtered_results}
-
-Remember: Return the final JSON output ONLY. Do not return a code.
-"""
-    )
-
-    results_to_valid_llm_part2 = ChatOllama(
-        model="deepseek-r1:8b-llama-distill-q8_0",
-        temperature=0,
-    )
-
-    chain_part2 = parser_prompt_part2 | results_to_valid_llm_part2
-
-    response_part2 = chain_part2.invoke({
-        "filtered_results": filtered_results,
-    })
-
-    final_result = re.sub(r"<think>.*?</think>\n?", "", response_part2.content, flags=re.DOTALL)
-
-    try:
-        final_results = json.loads(final_result)
-    except Exception as e:
-        return {"status": "error", "error": "Failed to parse chain part 2 response."}
-
+    filtered_results = response.content
+    final_results = json.loads(filtered_results)
     valid_moves = final_results
     print("Final Valid Moves:")
     print(valid_moves)
 
-    # ----- Convert the valid moves into source-destination pairs -----
     src_dest_pairs = []
     is_capture = False
     for key, value in valid_moves.items():
-        try:
-            value_converted = {int(k): eval(v) if isinstance(v, str) else eval(str([eval(str(i)) for i in v]))
-                               for k, v in value.items()}
-        except Exception as e:
-            value_converted = value
+        value = {int(k): eval(v) if isinstance(v, str) else eval(str([eval(str(i)) for i in v])) for k, v in value.items()}
+
+        print(key, value)
         if key == 'captures':
             is_capture = True
-        for source, destinations in value_converted.items():
-            if isinstance(destinations, (list, tuple)):
-                for destination in destinations:
-                    if isinstance(destination, (tuple, list)):
-                        for item in destination:
-                            src_dest_pairs.append([source, item])
-                    else:
-                        src_dest_pairs.append([source, destination])
-            else:
-                src_dest_pairs.append([source, destinations])
+        for source, destinations in value.items():
+            for destination in destinations:
+                if isinstance(destination, tuple) or isinstance(destination, list):
+                    for item in destination:
+                        src_dest_pairs.append([source,item])    
+                else:
+                    src_dest_pairs.append([source,destination])
 
-    if src_dest_pairs and is_capture:
+    print("SRCDEST pairs:", src_dest_pairs)
+    chosen_list = random.choice(src_dest_pairs)
+    chosen_piece_src = chosen_list[0]
+    chosen_piece_dest = chosen_list[1]
+
+    if src_dest_pairs != [] and is_capture:
         for index, (source, dest) in enumerate(src_dest_pairs):
             distance = dest - source
             directions = [-7, -9, 7, 9]
-            direction = None
-            factor = None
-            for dir_opt in directions:
-                if distance % dir_opt == 0:
-                    factor = distance // dir_opt
-                    direction = abs(dir_opt)
-                    break
-            enemy = False
+            for direction in directions:
+                if distance % direction == 0:  
+                    factor = distance // direction
+                    if factor < 0:
+                        direction = abs(direction)
+                    print(f"Direction: {direction}, Multiplied by: {factor}")
+                    break 
+
+            enemy=False
             middle = source
-            while middle != dest and direction is not None:
+            while middle != dest:
                 middle += direction
-                if isinstance(board_state[middle][0], dict):
-                    if board_state[middle][0].get('color') == 'b':
+                if isinstance(board_state[middle][0], Piece):
+
+                    if board_state[middle][0].color == 'b':
                         enemy = True
                         break
             if enemy:
                 try:
-                    srcval = board_state[source][0]['value']
-                    midval = board_state[middle][0]['value']
+                    srcval = board_state[source][0].value
+                    midval = board_state[middle][0].value
                     destop = board_state[dest][1]
+                    print(f"{srcval}{destop}{midval}")
                     score = round(eval(f"{srcval}{destop}{midval}"))
-                    capturing_is_dama = board_state[source][0].get('is_dama', False)
-                    captured_is_dama = board_state[middle][0].get('is_dama', False)
+                    capturing_is_dama = board_state[source][0].is_dama
+                    captured_is_dama = board_state[middle][0].is_dama
                     if capturing_is_dama and captured_is_dama:
                         score *= 4
                     elif capturing_is_dama or captured_is_dama:
                         score *= 2
                 except ZeroDivisionError:
                     score = 0
-                src_dest_pairs[index] = (source, dest, score)
 
-    return {"src_dest_pairs": src_dest_pairs}
+                src_dest_pairs[index] = (source, dest, score)
+        print(src_dest_pairs)
+        
+        # source, destination, score = chosen_list # di paman gud ni need ang score ron since i randomize sa nato.
+
+        # so sako nasabtan, ang i return dari dapat kay ang move na mismo? di ko sure unsay json na format pero dapat src ug destination ra
+        url = FLASK_BASE_URL + "/board_to_move"
+        payload = {"board": board}
+        requests.post(url, json=payload)
+
+    return {"source": chosen_piece_src, "destination": chosen_piece_dest}

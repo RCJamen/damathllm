@@ -135,6 +135,7 @@ const updateGameState = async () => {
 };
 
 const makeMove = async (source, destination) => {
+  // await updateGameState();
   try {
     const response = await fetch("/api/move", {
       method: "POST",
@@ -146,7 +147,6 @@ const makeMove = async (source, destination) => {
         destination: destination,
       }),
     });
-
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
