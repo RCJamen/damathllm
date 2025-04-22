@@ -121,9 +121,15 @@ class Game:
         self.move_history = []
         self.scores = {"b": 0, "r": 0}
         self.over = False
+        self.last_eat = None
 
     def check_all_valid(self, turn):
         self.valid_moves = {}
+        if self.last_eat:
+            chain_moves = self.check_potential_capture(self.last_eat)
+            self.valid_moves = {self.last_eat: chain_moves}
+            return
+
         for index, item in enumerate(self.board.board):
             if not isinstance(item, list):
                 continue
@@ -315,6 +321,7 @@ class Game:
             return {"error": "Invalid destination for the selected piece."}
 
         eaten = False
+        self.last_eat = None
         score = 0
 
         if self.dama_mandatory_capture:
@@ -372,8 +379,11 @@ class Game:
         self.move_history.append((self.current_move, (piece_index, destination), score))
 
         if eaten:
-            chain_moves = self.check_valid_moves(selected_piece)
-            if chain_moves:
+            self.last_eat = selected_piece
+            print("SELF LAST EAT", self.last_eat)
+            chain_moves = self.check_potential_capture(selected_piece)
+            print(chain_moves)
+            if chain_moves != []:
                 self.valid_moves = {selected_piece: chain_moves}
                 return {
                     "array_board": f"{self.board}",
@@ -381,12 +391,15 @@ class Game:
                     "current_turn": self.current_move,
                     "move_history": self.move_history,
                 }
+            else:
+                self.last_eat = None
+                
         self.current_move = "r" if self.current_move == "b" else "b"
         self.has_mandatory_capture = False
         self.has_mandatory_capture_check = False
         self.dama_mandatory_capture = False
         self.dama_mandatory_capture_check = False
-        self.check_all_valid(self.current_move)
+        # self.check_all_valid(self.current_move)
 
         return {
             "array_board": f"{self.board}",
