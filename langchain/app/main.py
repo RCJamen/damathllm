@@ -129,10 +129,13 @@ def board_to_move(request: BoardRequest):
 
     results = {}
 
+    print(board_state)
+
     for test in ["normal_moves", "dama_moves", "normal_captures", "dama_captures"]:
         results[test] = get_valid_moves(test, board_state)
 
     results = clean_dict(results)
+    print("Cleaned:", results)
 
     if "dama_captures" in results.keys() or "normal_captures" in results.keys():
         is_capture = True
@@ -161,32 +164,19 @@ def board_to_move(request: BoardRequest):
     Return only the final JSON with key "moves".
     """)
 
-    determiner_template = ChatPromptTemplate.from_template("""
-    You are given a dictionary named "results". Follow the steps provided.
-
-    If the "dama_captures" key is present, keep the key and their values, removing other keys (such as "normal_captures", "normal_moves" and/or "dama_moves").
-    Else, if "normal_captures" key is present but not "dama_captures", keep the "normal_captures" key, removing other keys (such as "normal_moves" and/or "dama_moves").
-
-    Here is the results dictionary:
-    {results}
-
-    Return a Python dictionary ONLY in string format.
-
-    """)
-
     capture_template = ChatPromptTemplate.from_template("""
-    You are given a dictionary named "results" that contains either only two keys: "normal_captures" and "dama_captures".
+    You are given a dictionary named "results" that may contain two keys: "normal_captures" and "dama_captures".
 
     Each of these keys maps to a dictionary:
     - In "normal_captures", keys are integers, and values are lists of integers.
     - In "dama_captures", keys are integers, and values are lists of tuples of integers.
 
     Your task is:
-    1. Ignore the top-level keys ("normal_captures" and "dama_captures") and work only with their inner dictionaries.
-    2. Choose one of the two inner dictionaries:
-        - If "dama_captures" has a value aside from an empty dictionary, flatten the tuples in the value, and keep this value as the remaining dictionary.
-        - Else, keep the "normal_captures" value which is a dictionary.
-    3. The final result should be a JSON object with a single key "captures", whose value is the remaining dictionary.
+    1. Ignore the top-level keys and work only with the values of the inner dictionaries.
+    2. Choose one of the inner dictionaries:
+        - If "dama_captures" exists **and** is not empty, flatten the tuples in its values (i.e., convert each list of tuples into a list of integers), and use this dictionary.
+        - Otherwise, use the "normal_captures" dictionary.
+    3. The final result should be a JSON object with a single key "captures", whose value is the selected and possibly modified dictionary.
     4. All keys in the final dictionary should be strings.
 
     Here is the results dictionary:
@@ -195,100 +185,138 @@ def board_to_move(request: BoardRequest):
     Return only the final JSON with key "captures".
     """)
 
+    # capture_template = ChatPromptTemplate.from_template("""
+    # You are given a dictionary that contains either only two keys: "normal_captures" and "dama_captures".
 
-    llm = ChatOllama(
-        model="llama3.1:8b-instruct-fp16",
-        temperature=0,
-        format="json",
-    )
+    # Each of these keys maps to a dictionary:
+    # - In "normal_captures", keys are integers, and values are lists of integers.
+    # - In "dama_captures", keys are integers, and values are lists of tuples of integers.
 
-    if is_capture:
-        determiner_chain = determiner_template | llm
-        capture_chain = capture_template | llm
+    # Your task is:
+    # 1. Ignore the top-level keys ("normal_captures" and "dama_captures") and work only with their inner dictionaries.
+    # 2. Choose one of the two inner dictionaries:
+    #     - If "dama_captures" has a value aside from an empty dictionary, flatten the tuples in the value, and keep this value as the remaining dictionary.
+    #     - Else, keep the "normal_captures" value which is a dictionary.
+    # 3. The final result should be a JSON object with a single key "captures", whose value is the remaining dictionary.
+    # 4. All keys in the final dictionary should be strings.
 
-        response = determiner_chain.invoke({
-            "results": results,
-        })
+    # Here is the dictionary:
+    # {results}
 
-        response = capture_chain.invoke({
-            "results": response.content.rstrip()
-        })
-    else:
-        move_chain = move_template | llm
+    # Return only the final JSON with key "captures".
+    # """)
 
-        response = move_chain.invoke({
-            "results": results,
-        })
+    temperature=0
+    while True:
+        try:
+            print("Rerun with temp:", temperature, "is_capture:", is_capture, "results:", results)
+            llm = ChatOllama(
+                model="llama3.1:8b-instruct-fp16",
+                temperature=temperature,
+                format="json",
+            )
 
-    filtered_results = response.content
-    final_results = json.loads(filtered_results)
-    valid_moves = final_results
-    print("Final Valid Moves:")
-    print(valid_moves)
+            if is_capture:
+                # determiner_chain = determiner_template | llm
+                capture_chain = capture_template | llm
 
-    src_dest_pairs = []
-    is_capture = False
-    for key, value in valid_moves.items():
-        value = {int(k): eval(v) if isinstance(v, str) else eval(str([eval(str(i)) for i in v])) for k, v in value.items()}
+                # response = determiner_chain.invoke({
+                #     "results": results,
+                # })
+                # print("Determiner:", response.content.rstrip())
+                response = capture_chain.invoke({
+                    "results": results
+                })
+            else:
+                move_chain = move_template | llm
 
-        print(key, value)
-        if key == 'captures':
-            is_capture = True
-        for source, destinations in value.items():
-            for destination in destinations:
-                if isinstance(destination, tuple) or isinstance(destination, list):
-                    for item in destination:
-                        src_dest_pairs.append([source,item])
-                else:
-                    src_dest_pairs.append([source,destination])
+                response = move_chain.invoke({
+                    "results": results,
+                })
 
-    print("SRCDEST pairs:", src_dest_pairs)
-    chosen_list = random.choice(src_dest_pairs)
-    chosen_piece_src = chosen_list[0]
-    chosen_piece_dest = chosen_list[1]
+            filtered_results = response.content
+            final_results = json.loads(filtered_results)
+            valid_moves = final_results
+            print("Final Valid Moves:")
+            print(valid_moves)
 
-    if src_dest_pairs != [] and is_capture:
-        for index, (source, dest) in enumerate(src_dest_pairs):
-            distance = dest - source
-            directions = [-7, -9, 7, 9]
-            for direction in directions:
-                if distance % direction == 0:
-                    factor = distance // direction
-                    if factor < 0:
-                        direction = abs(direction)
-                    print(f"Direction: {direction}, Multiplied by: {factor}")
-                    break
+            src_dest_pairs = []
+            
+            for key, value in valid_moves.items():
+                value = {int(k): eval(v) if isinstance(v, str) else eval(str([eval(str(i)) for i in v])) for k, v in value.items()}
 
-            enemy=False
-            middle = source
-            while middle != dest:
-                middle += direction
-                if isinstance(board_state[middle][0], Piece):
+                print(key, value)
+                if key == 'captures':
+                    is_capture = True
+                for source, destinations in value.items():
+                    for destination in destinations:
+                        if isinstance(destination, tuple) or isinstance(destination, list):
+                            for item in destination:
+                                src_dest_pairs.append([source,item])
+                        else:
+                            src_dest_pairs.append([source,destination])
 
-                    if board_state[middle][0].color == 'b':
-                        enemy = True
-                        break
-            if enemy:
-                try:
-                    srcval = board_state[source][0].value
-                    midval = board_state[middle][0].value
-                    destop = board_state[dest][1]
-                    print(f"{srcval}{destop}{midval}")
-                    score = round(eval(f"{srcval}{destop}{midval}"))
-                    capturing_is_dama = board_state[source][0].is_dama
-                    captured_is_dama = board_state[middle][0].is_dama
-                    if capturing_is_dama and captured_is_dama:
-                        score *= 4
-                    elif capturing_is_dama or captured_is_dama:
-                        score *= 2
-                except ZeroDivisionError:
-                    score = 0
+            print("SRCDEST pairs:", src_dest_pairs)
+            chosen_list = random.choice(src_dest_pairs)
+            chosen_piece_src = chosen_list[0]
+            chosen_piece_dest = chosen_list[1]
 
-                src_dest_pairs[index] = (source, dest, score)
-        print(src_dest_pairs)
+            if src_dest_pairs != [] and is_capture:
+                for index, (source, dest) in enumerate(src_dest_pairs):
+                    distance = dest - source
+                    directions = [-7, -9, 7, 9]
+                    for direction in directions:
+                        if distance % direction == 0:
+                            factor = distance // direction
+                            if factor < 0:
+                                direction = abs(direction)
+                            print(f"Direction: {direction}, Multiplied by: {factor}")
+                            break
+
+                    enemy=False
+                    middle = source
+                    while middle != dest:
+                        middle += direction
+                        if isinstance(board_state[middle][0], Piece):
+
+                            if board_state[middle][0].color == 'b':
+                                enemy = True
+                                break
+                    if enemy:
+                        try:
+                            srcval = board_state[source][0].value
+                            midval = board_state[middle][0].value
+                            destop = board_state[dest][1]
+                            print(f"{srcval}{destop}{midval}")
+                            score = round(eval(f"{srcval}{destop}{midval}"))
+                            capturing_is_dama = board_state[source][0].is_dama
+                            captured_is_dama = board_state[middle][0].is_dama
+                            if capturing_is_dama and captured_is_dama:
+                                score *= 4
+                            elif capturing_is_dama or captured_is_dama:
+                                score *= 2
+                        except ZeroDivisionError:
+                            score = 0
+
+                        src_dest_pairs[index] = (source, dest, score)
+                print(src_dest_pairs)
+            break
+        except:
+            print("Resultstovaliderror")
+            temperature += 0.04
+            if temperature > 1:
+                temperature = 0
+            else:
+                continue
+
 
         # source, destination, score = chosen_list # di paman gud ni need ang score ron since i randomize sa nato.
 
         # so sako nasabtan, ang i return dari dapat kay ang move na mismo? di ko sure unsay json na format pero dapat src ug destination ra
-
+    print("CHOICE:", chosen_piece_src, chosen_piece_dest)
     return {"source": chosen_piece_src, "destination": chosen_piece_dest}
+
+
+# bag-ong endpoint for bestmove, 
+# input: source dest pairs
+# given source dest pairs, if mo output ang 
