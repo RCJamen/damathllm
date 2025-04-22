@@ -318,5 +318,14 @@ def board_to_move(request: BoardRequest):
 
 
 # bag-ong endpoint for bestmove, 
-# input: source dest pairs
-# given source dest pairs, if mo output ang 
+# input: source dest 
+# steps for best move:
+    # create basemodel para iluwa https://python.langchain.com/docs/how_to/structured_output/#typeddict-or-json-schema
+    # pasa src_dest_pairs and board_state
+    # create new instructions (bahalag imo i putol2 same concept sa pag valid move)
+    
+    {(0,18): "Bati ni cya na move kay..",
+     (16,34): "Nice ni na move kay positive sa imo, unya negative if kan on niya"}
+@app.post("/board_to_move")
+def best_move(request: BoardRequest):
+    pass
