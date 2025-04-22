@@ -211,7 +211,7 @@ def board_to_move(request: BoardRequest):
         try:
             print("Rerun with temp:", temperature, "is_capture:", is_capture, "results:", results)
             llm = ChatOllama(
-                model="llama3.1:8b-instruct-fp16",
+                model="llama3.2:3b-instruct-fp16",
                 temperature=temperature,
                 format="json",
             )
@@ -323,7 +323,7 @@ def board_to_move(request: BoardRequest):
     # create basemodel para iluwa https://python.langchain.com/docs/how_to/structured_output/#typeddict-or-json-schema
     # pasa src_dest_pairs and board_state
     # create new instructions (bahalag imo i putol2 same concept sa pag valid move)
-    
+
     {(0,18): "Bati ni cya na move kay..",
      (16,34): "Nice ni na move kay positive sa imo, unya negative if kan on niya"}
 @app.post("/board_to_move")
