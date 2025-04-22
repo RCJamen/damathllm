@@ -78,13 +78,72 @@ def get_valid_moves(test_name, board_state):
 
 results = {}
 for test in ["normal_moves", "dama_moves", "normal_captures", "dama_captures"]:
-    new_board_state = [[None, '*'], 'X', [None, '/'], 'X', [None, '-'], 'X', [None, '+'], 'X', 'X', [None, '/'], 'X', [None, '*'], 'X', 
-              [Piece('r', -11, is_dama=False), '+'], 'X', [Piece('r', 0, is_dama=False), '-'], [None, '-'], 'X', [None, '+'], 'X', 
-              [Piece('r', 6, is_dama=True), '*'], 'X', [Piece('r', -9, is_dama=False), '/'], 'X', 'X', [None, '+'], 'X', [None, '-'], 
-              'X', [None, '/'], 'X', [None, '*'], [Piece('b', 0, is_dama=True), '*'], 'X', [None, '/'], 'X', [None, '-'], 'X', 
-              [None, '+'], 'X', 'X', [None, '/'], 'X', [None, '*'], 'X', [None, '+'], 'X', [None, '-'], [Piece('r', -5, is_dama=True), 
-              '-'], 'X', [None, '+'], 'X', [None, '*'], 'X', [None, '/'], 'X', 'X', [None, '+'], 'X', [None, '-'], 'X', [None, '/'], 
-              'X', [None, '*']]
+    new_board_state = [
+    [Piece('r', -112, is_dama=False), '*'],
+    'X',
+    [None, '/'],
+    'X',
+    [None, '-'],
+    'X',
+    [None, '+'],
+    'X',
+    'X',
+    [Piece('b', 0, is_dama=False), '/'],
+    'X',
+    [None, '*'],
+    'X',
+    [None, '+'],
+    'X',
+    [None, '-'],
+    [None, '-'],
+    'X',
+    [None, '+'],
+    'X',
+    [None, '*'],
+    'X',
+    [Piece('r', -9, is_dama=False), '/'],
+    'X',
+    'X',
+    [None, '+'],
+    'X',
+    [Piece('b', -11, is_dama=False), '-'],
+    'X',
+    [None, '/'],
+    'X',
+    [None, '*'],
+    [Piece('b', 0, is_dama=False), '*'],
+    'X',
+    [Piece('r', -5, is_dama=True), '/'],
+    'X',
+    [None, '-'],
+    'X',
+    [None, '+'],
+    'X',
+    'X',
+    [None, '/'],
+    'X',
+    [Piece('b', -5, is_dama=True), '*'],
+    'X',
+    [None, '+'],
+    'X',
+    [None, '-'],
+    [None, '-'],
+    'X',
+    [None, '+'],
+    'X',
+    [None, '*'],
+    'X',
+    [Piece('b', 6, is_dama=False), '/'],
+    'X',
+    'X',
+    [None, '+'],
+    'X',
+    [None, '-'],
+    'X',
+    [None, '/'],
+    'X',
+    [Piece('r', 6, is_dama=False), '*']
+]
     
     results[test] = get_valid_moves(test, new_board_state)
 
@@ -98,8 +157,8 @@ def clean_dict(data):
             cleaned_value = clean_dict(value)
             if cleaned_value:  # only add if not empty
                 cleaned[key] = cleaned_value
-            elif key in ["normal_moves", "dama_moves", "normal_captures", "dama_captures"]:
-                cleaned[key] = {}
+            # elif key in ["normal_moves", "dama_moves", "normal_captures", "dama_captures"]:
+            #     cleaned[key] = {}
         return cleaned
     elif isinstance(data, list):
         cleaned_list = [clean_dict(item) for item in data if item not in ([], ())]
@@ -116,150 +175,31 @@ results = clean_dict(results)
 print("\n\nCleaned results:")
 print(results)
 
+is_capture = False
+if "dama_captures" in results.keys():
+    results.pop("normal_captures", None)
+    results.pop("normal_moves", None)
+    results.pop("dama_moves", None)
+    is_capture = True
+elif "normal_captures" in results.keys():
+    results.pop("normal_moves", None)
+    results.pop("dama_moves", None)
+    is_capture = True
 
-# parser_prompt_part1 = ChatPromptTemplate.from_template("""
-# You are given a dictionary named "results" with the following keys:
-# - move data: "normal_moves" and "dama_moves"
-# - capture data: "normal_captures" and "dama_captures"
+print(results)
 
-# Your task is to choose which set of data to return.
+valid_moves_val = {}
+valid_moves = {}
+for key, value in results.items():
+    valid_moves_val.update(value)
 
-# Steps:
-# 1. For each key in "normal_captures" and "dama_captures":
-#     - A list is considered empty if it has no elements.
-#     - If the list has elements, consider it empty if every element in the list is an empty tuple (a tuple with zero elements).
-# 2. If any key in either capture dictionary has a list that is not empty (by the above rules), choose the capture data.
-# 3. Otherwise, if all keys in both capture dictionaries are empty, choose the move data.
-
-# Return a JSON result using the original data without any filtering, in one of the following forms:
-
-# If capture data is chosen:
-# {{
-#     "captures": {{
-#         "normal_captures": {{ ... original normal_captures ... }},
-#         "dama_captures": {{ ... original dama_captures ... }}
-#     }}
-# }}
-
-# If move data is chosen:
-# {{
-#     "moves": {{
-#         "normal_moves": {{ ... original normal_moves ... }},
-#         "dama_moves": {{ ... original dama_moves ... }}
-#     }}
-# }}
-
-# For example, given these results:
-# {results}
-
-# Return a JSON result.
-# """)
-
-parser_prompt_part1 = ChatPromptTemplate.from_template("""
-You are given a dictionary named "results" with a classification for the following keys:
-1. "normal_moves" and "dama_moves" dictionaries belong to "move data", while
-2. "normal_captures" and "dama_captures" dictionaries belong to "capture data"
-
-Your task is to choose which set of data to return.
-
-Steps:
-1. If any key in either capture dictionary is not empty, choose the capture data.
-2. Otherwise, if all dictionaries in both capture dictionaries are empty, choose the move data.
-
-Return a JSON result using the original data without any filtering, in one of the following forms:
-
-If capture data is chosen:
-{{
-    "captures": {{
-        "normal_captures": {{ ... original normal_captures ... }},
-        "dama_captures": {{ ... original dama_captures ... }}
-    }}
-}}
-
-If move data is chosen:
-{{
-    "moves": {{
-        "normal_moves": {{ ... original normal_moves value ... }},
-        "dama_moves": {{ ... original dama_moves ... value }}
-    }}
-}}
-
-The original dictionaries must be followed strictly.
-
-For example, given these results:
-{results}
-
-REMEMBER: Return a pure-JSON format result ONLY. Do NOT return in a markdown-style code block format.
-""")
+if is_capture:
+    valid_moves.update({"captures": valid_moves_val})
+else:
+    valid_moves.update({"moves": valid_moves_val})
 
 
 
-results_to_valid_llm_part1 = ChatOllama(
-    model="llama3.2:3b-instruct-fp16",
-    temperature=0,
-    format="json",
-)
-
-chain_part1 = parser_prompt_part1 | results_to_valid_llm_part1
-
-response_part1 = chain_part1.invoke({
-    "results": results,
-})
-
-
-# filtered_results = json.loads(response_part1.content)
-filtered_results = response_part1.content
-print("\n\nFiltered (Intermediate) Results:")
-print(filtered_results, type(filtered_results))
-
-parser_prompt_part2 = ChatPromptTemplate.from_template("""
-You are provided with a filtered dictionary named "filtered_results" that contains either capture data (with keys "normal_captures" and "dama_captures")
-or move data (with keys "normal_moves" and "dama_moves").
-
-Perform the following steps:
-1. For each key present in the dictionaries:
-   - If "filtered_results" contains capture data:
-      a. If both "normal_captures" and "dama_captures" have non-empty values, use the values from "dama_captures" only.
-      b. If only one dictionary has a non-empty value for that key, use that value.
-      c. Remove the keys "normal_captures" and "dama_captures"
-   - Otherwise, if "filtered_results" contains move data:
-      a. Keep the value ONLY of the "dama_moves" key.
-      b. With the value of the "normal_moves", get the key-value pairs and add it to the value of the "dama_moves" UNLESS the key already exists in the "dama_moves".
-      c. Let's call this the "merged data". Remove the keys "normal_moves" and "dama_moves".
-2. Return the final JSON output with:
-   - If the input was capture data, return {{{{"captures": {{ ...merged data... }}}}}}
-   - If the input was move data, return {{{{"moves": {{ ...merged data... }}}}}}
-   - 
-
-Here are the filtered_results:
-{filtered_results}
-
-Remember: Return the final JSON output ONLY. Do not return a code. 
-""")
-
-
-results_to_valid_llm_part2 = ChatOllama(
-    model="llama3.2:3b-instruct-fp16",
-    temperature=0,
-    format="json",    
-)
-
-chain_part2 = parser_prompt_part2 | results_to_valid_llm_part2
-
-response_part2 = chain_part2.invoke({
-    "filtered_results": filtered_results,
-})
-
-
-# final_results = re.sub(r"<think>.*?</think>\n?", "", response_part2.content, flags=re.DOTALL)
-# print(final_results)
-
-import ast
-
-# final_results = ast.literal_eval(final_results)
-
-final_results = json.loads(response_part2.content)
-valid_moves = final_results
 print("Final Valid Moves:")
 print(valid_moves)
 

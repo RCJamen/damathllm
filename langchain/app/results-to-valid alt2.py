@@ -98,8 +98,8 @@ def clean_dict(data):
             cleaned_value = clean_dict(value)
             if cleaned_value:  # only add if not empty
                 cleaned[key] = cleaned_value
-            elif key in ["normal_moves", "dama_moves", "normal_captures", "dama_captures"]:
-                cleaned[key] = {}
+            # elif key in ["normal_moves", "dama_moves", "normal_captures", "dama_captures"]:
+            #     cleaned[key] = {}
         return cleaned
     elif isinstance(data, list):
         cleaned_list = [clean_dict(item) for item in data if item not in ([], ())]
@@ -116,139 +116,136 @@ results = clean_dict(results)
 print("\n\nCleaned results:")
 print(results)
 
+if "dama_captures" in results.keys() or "normal_captures" in results.keys():
+    is_capture = True
+else:
+    is_capture = False
 
-# parser_prompt_part1 = ChatPromptTemplate.from_template("""
-# You are given a dictionary named "results" with the following keys:
-# - move data: "normal_moves" and "dama_moves"
-# - capture data: "normal_captures" and "dama_captures"
 
-# Your task is to choose which set of data to return.
+move_template = ChatPromptTemplate.from_template("""
+You are given a dictionary named "results" that contains only two keys: "normal_moves" and "dama_moves".
 
-# Steps:
-# 1. For each key in "normal_captures" and "dama_captures":
-#     - A list is considered empty if it has no elements.
-#     - If the list has elements, consider it empty if every element in the list is an empty tuple (a tuple with zero elements).
-# 2. If any key in either capture dictionary has a list that is not empty (by the above rules), choose the capture data.
-# 3. Otherwise, if all keys in both capture dictionaries are empty, choose the move data.
+Each of these keys maps to a dictionary:
+- In "normal_moves", keys are integers, and values are lists of integers.
+- In "dama_moves", keys are integers, and values are lists of tuples of integers.
 
-# Return a JSON result using the original data without any filtering, in one of the following forms:
+Your task is:
+1. Ignore the top-level keys ("normal_moves" and "dama_moves") and work only with their inner dictionaries.
+2. Merge the two inner dictionaries into one:
+    - For each shared key, keep the value from the "dama_moves".
+    - Flatten all tuples in "dama_moves" values into one list of integers before merging.
+    - If a key only exists in one of the dictionaries, use its value directly.
+3. The final result should be a JSON object with a single key "moves", whose value is the merged dictionary.
+4. All keys in the final dictionary should be strings.
 
-# If capture data is chosen:
-# {{
-#     "captures": {{
-#         "normal_captures": {{ ... original normal_captures ... }},
-#         "dama_captures": {{ ... original dama_captures ... }}
-#     }}
-# }}
-
-# If move data is chosen:
-# {{
-#     "moves": {{
-#         "normal_moves": {{ ... original normal_moves ... }},
-#         "dama_moves": {{ ... original dama_moves ... }}
-#     }}
-# }}
-
-# For example, given these results:
-# {results}
-
-# Return a JSON result.
-# """)
-
-parser_prompt_part1 = ChatPromptTemplate.from_template("""
-You are given a dictionary named "results" with a classification for the following keys:
-1. "normal_moves" and "dama_moves" dictionaries belong to "move data", while
-2. "normal_captures" and "dama_captures" dictionaries belong to "capture data"
-
-Your task is to choose which set of data to return.
-
-Steps:
-1. If any key in either capture dictionary is not empty, choose the capture data.
-2. Otherwise, if all dictionaries in both capture dictionaries are empty, choose the move data.
-
-Return a JSON result using the original data without any filtering, in one of the following forms:
-
-If capture data is chosen:
-{{
-    "captures": {{
-        "normal_captures": {{ ... original normal_captures ... }},
-        "dama_captures": {{ ... original dama_captures ... }}
-    }}
-}}
-
-If move data is chosen:
-{{
-    "moves": {{
-        "normal_moves": {{ ... original normal_moves value ... }},
-        "dama_moves": {{ ... original dama_moves ... value }}
-    }}
-}}
-
-The original dictionaries must be followed strictly.
-
-For example, given these results:
+Here is the results dictionary:
 {results}
 
-REMEMBER: Return a pure-JSON format result ONLY. Do NOT return in a markdown-style code block format.
+Return only the final JSON with key "moves".
+""")
+
+determiner_template = ChatPromptTemplate.from_template("""
+You are given a dictionary named "results". Follow the steps provided.
+
+If the "dama_captures" key is present, keep the key and their values, removing other keys (such as "normal_captures", "normal_moves" and/or "dama_moves").
+Else, if "normal_captures" key is present but not "dama_captures", keep the "normal_captures" key, removing other keys (such as "normal_moves" and/or "dama_moves").
+
+Here is the results dictionary:
+{results}
+
+Return a Python dictionary ONLY in string format.                                                 
+
+""")
+
+capture_template = ChatPromptTemplate.from_template("""
+You are given a dictionary named "results" that contains either only two keys: "normal_captures" and "dama_captures".
+
+Each of these keys maps to a dictionary:
+- In "normal_captures", keys are integers, and values are lists of integers.
+- In "dama_captures", keys are integers, and values are lists of tuples of integers.
+
+Your task is:
+1. Ignore the top-level keys ("normal_captures" and "dama_captures") and work only with their inner dictionaries.
+2. Choose one of the two inner dictionaries:
+     - If "dama_captures" has a value aside from an empty dictionary, flatten the tuples in the value, and keep this value as the remaining dictionary.
+     - Else, keep the "normal_captures" value which is a dictionary.
+3. The final result should be a JSON object with a single key "captures", whose value is the remaining dictionary.
+4. All keys in the final dictionary should be strings.
+
+Here is the results dictionary:
+{results}
+
+Return only the final JSON with key "captures".
 """)
 
 
-
-results_to_valid_llm_part1 = ChatOllama(
-    model="llama3.2:3b-instruct-fp16",
+llm = ChatOllama(
+    model="llama3.1:8b-instruct-fp16",
     temperature=0,
     format="json",
 )
 
-chain_part1 = parser_prompt_part1 | results_to_valid_llm_part1
+if is_capture:
 
-response_part1 = chain_part1.invoke({
-    "results": results,
-})
+    determiner_chain = determiner_template | llm 
+    capture_chain = capture_template | llm
 
+    response = determiner_chain.invoke({
+        "results": results,
+    })
+
+    response = capture_chain.invoke({
+        "results": response.content.rstrip()
+    })
+else:
+    move_chain = move_template | llm
+
+    response = move_chain.invoke({
+        "results": results,
+    }) 
 
 # filtered_results = json.loads(response_part1.content)
-filtered_results = response_part1.content
+filtered_results = response.content
 print("\n\nFiltered (Intermediate) Results:")
 print(filtered_results, type(filtered_results))
 
-parser_prompt_part2 = ChatPromptTemplate.from_template("""
-You are provided with a filtered dictionary named "filtered_results" that contains either capture data (with keys "normal_captures" and "dama_captures")
-or move data (with keys "normal_moves" and "dama_moves").
+# parser_prompt_part2 = ChatPromptTemplate.from_template("""
+# You are provided with a filtered dictionary named "filtered_results" that contains either capture data (with keys "normal_captures" and "dama_captures")
+# or move data (with keys "normal_moves" and "dama_moves").
 
-Perform the following steps:
-1. For each key present in the dictionaries:
-   - If "filtered_results" contains capture data:
-      a. If both "normal_captures" and "dama_captures" have non-empty values, use the values from "dama_captures" only.
-      b. If only one dictionary has a non-empty value for that key, use that value.
-      c. Remove the keys "normal_captures" and "dama_captures"
-   - Otherwise, if "filtered_results" contains move data:
-      a. Keep the value ONLY of the "dama_moves" key.
-      b. With the value of the "normal_moves", get the key-value pairs and add it to the value of the "dama_moves" UNLESS the key already exists in the "dama_moves".
-      c. Let's call this the "merged data". Remove the keys "normal_moves" and "dama_moves".
-2. Return the final JSON output with:
-   - If the input was capture data, return {{{{"captures": {{ ...merged data... }}}}}}
-   - If the input was move data, return {{{{"moves": {{ ...merged data... }}}}}}
-   - 
+# Perform the following steps:
+# 1. For each key present in the dictionaries:
+#    - If "filtered_results" contains capture data:
+#       a. If both "normal_captures" and "dama_captures" have non-empty values, use the values from "dama_captures" only.
+#       b. If only one dictionary has a non-empty value for that key, use that value.
+#       c. Remove the keys "normal_captures" and "dama_captures"
+#    - Otherwise, if "filtered_results" contains move data:
+#       a. Keep the value ONLY of the "dama_moves" key.
+#       b. With the value of the "normal_moves", get the key-value pairs and add it to the value of the "dama_moves" UNLESS the key already exists in the "dama_moves".
+#       c. Let's call this the "merged data". Remove the keys "normal_moves" and "dama_moves".
+# 2. Return the final JSON output with:
+#    - If the input was capture data, return {{{{"captures": {{ ...merged data... }}}}}}
+#    - If the input was move data, return {{{{"moves": {{ ...merged data... }}}}}}
+#    - 
 
-Here are the filtered_results:
-{filtered_results}
+# Here are the filtered_results:
+# {filtered_results}
 
-Remember: Return the final JSON output ONLY. Do not return a code. 
-""")
+# Remember: Return the final JSON output ONLY. Do not return a code. 
+# """)
 
 
-results_to_valid_llm_part2 = ChatOllama(
-    model="llama3.2:3b-instruct-fp16",
-    temperature=0,
-    format="json",    
-)
+# results_to_valid_llm_part2 = ChatOllama(
+#     model="llama3.2:3b-instruct-fp16",
+#     temperature=0,
+#     format="json",    
+# )
 
-chain_part2 = parser_prompt_part2 | results_to_valid_llm_part2
+# chain_part2 = parser_prompt_part2 | results_to_valid_llm_part2
 
-response_part2 = chain_part2.invoke({
-    "filtered_results": filtered_results,
-})
+# response_part2 = chain_part2.invoke({
+#     "filtered_results": filtered_results,
+# })
 
 
 # final_results = re.sub(r"<think>.*?</think>\n?", "", response_part2.content, flags=re.DOTALL)
@@ -258,7 +255,7 @@ import ast
 
 # final_results = ast.literal_eval(final_results)
 
-final_results = json.loads(response_part2.content)
+final_results = json.loads(filtered_results)
 valid_moves = final_results
 print("Final Valid Moves:")
 print(valid_moves)
