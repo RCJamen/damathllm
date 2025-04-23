@@ -393,7 +393,7 @@ class Game:
                 }
             else:
                 self.last_eat = None
-                
+
         self.current_move = "r" if self.current_move == "b" else "b"
         self.has_mandatory_capture = False
         self.has_mandatory_capture_check = False
@@ -402,7 +402,8 @@ class Game:
         # self.check_all_valid(self.current_move)
 
         return {
-            "array_board": f"{self.board}",
+            "json_board": self.board.to_json(),
+            # "array_board": f"{self.board}",
             "current_turn": self.current_move,
             "scores": self.scores,
             "move_history": self.move_history,

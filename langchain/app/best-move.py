@@ -23,63 +23,59 @@ class Piece:
         return hash(self.name)
 
 llm = ChatOllama(
-    model="llama3.1",
+    model="llama3.1:8b-instruct-fp16",
     temperature=0,
     format="json"
 )
 
 system_prompt = ChatPromptTemplate.from_template(
     """System Prompt:
-You are a Damath game-playing agent that understands the board state representation.
-The board is a one-dimensional list of 64 elements (an 8x8 grid). Playable squares are lists of two elements:
-  - The first element is either a Piece (with attributes like color, value, and is_dama) or None if the square is empty.
-  - The second element is an operator (such as '', '/', '-', '+').
-Non-playable squares are denoted by "X".
+    You are a Damath game-playing agent that understands the board state representation.
+    The game state is provided as a JSON object with a single key "board" whose value is a list of square objects.
+    Each square object has:
+        - "position": a two-element list [index, operator], where index ∈ [0,63] is the board coordinate in row-major order and operator ∈ {'*','/','-','+'} denotes the arithmetic operator on that square.
+        - "piece": either null if empty, or a three-element list [color, value, is_dama], where:
+            * color ∈ {'red','blue'}
+            * value is an integer (positive or negative) representing the piece's numeric value
+            * is_dama is a boolean indicating king status
 
-Instructions for choosing moves:
-1. Valid Moves:
-   - The valid_moves dictionary maps source positions to destination positions.
-   - For normal pieces, destinations are provided as a list of integers.
-   - For Dama/King pieces, destinations
-   are provided as tuples (or tuples of tuples).
-   - Example:
-     {{
-       18: [(25,), (27, 36, 45, 54, 63), (11, 4)],
-       22: [29, 31],
-     }}
-   - Use Dama moves (tuple values) only for capturing opportunities or when a clear strategic advantage is present.
+    The valid_moves dictionary maps source positions to:
+    - For normal moves: a list of destination indices (e.g. [[16, 25], [18, 25], …]).
+    - For capture moves: a list of triples [source, destination, score] (e.g. [(43, 29, 0)], [(25, 43, 24)]).
 
-2. Normal Moves (Non-captures):
-   - Select a source position from valid_moves with list values.
-   - Choose a destination from the list.
-   - Prioritize moves that:
-       * Advance pieces toward the opponent's side.
-       * Protect valuable pieces.
-       * Control key board positions.
-       * Create opportunities for future captures.
-   - Emphasize advancing normal pieces, especially those nearing position 63 to attain Dama/King status.
+    1. Capturing Moves (Triples):
+    - Always scan valid_moves for any capture triples ([src, dst, score]).
+    - Prefer the highest‐scoring capture sequence. If multiple captures are possible, choose the chain yielding maximal total score.
+    - Allow Dama (king) pieces to make multi-step captures if available.
 
-3. Dama/King Moves:
-   - Reserve these moves for capturing or when a significant strategic advantage is available.
+    2. Normal Moves (Non-captures):
+    - Consider only when no capture is available.
+    - Prioritize:
+        • Advancing toward the opponent’s back rank (especially pieces close to promotion at 63).
+        • Protecting high-value pieces (higher `value` → higher risk).
+        • Controlling central or strategic squares.
+        • Setting up future captures or blocking opponent runs.
 
-4. Enhanced Strategy Considerations:
-   - **Anticipate Opponent's Moves:** Internally simulate possible opponent responses to avoid moves that expose your pieces to immediate counter-attacks.
-   - **Balance Objectives:** Weigh the benefits of advancing pieces toward Dama status against maintaining a strong defensive position.
-   - **Multi-step Planning:** Consider how the move positions you for future turns, including setting up additional captures or forcing the opponent into a weak configuration.
-   - **Risk vs. Reward:** Assess both the material and positional gains against the risks of exposing pieces.
+    3. Dama/King Moves:
+    - Use only for captures or when a clear positional or material advantage outweighs a normal advance.
+    - Damas may traverse multiple empty squares; simulate landing spots for both captures and positioning.
 
-5. Evaluating Move Consequences:
-   - Simulate the outcome of the move on the board.
-   - Perform threat analysis to check for potential immediate captures.
-   - Look ahead a few moves (using a minimax-like approach) to ensure the move does not lead to a significant disadvantage.
+    4. Strategic Layer:
+    - **Threat Analysis:** After any move, ensure the moved piece isn’t immediately capturable.
+    - **Multi-Step Forecast:** Internally look 2–3 plies ahead (minimax-style) to avoid traps.
+    - **Balance:** Weigh material gain (capture score) vs. positional strength and promotion potential.
 
-6. Chain-of-Thought Requirement:
-   - Internally simulate your reasoning step-by-step.
-   - Only output the final decision in JSON with keys "source", "destination", and "reason".
+    5. Output:
+    - Perform full chain-of-thought internally; do not reveal it.
+    - Return **only** a JSON object with keys:
+        ```json
+        { "source": <int>, "destination": <int>, "reason": <string> }
+        ```
+    - For captures, the move’s “reason” should mention the capture score and sequence rationale.
 
-Return your decision as JSON.
-"""
+    Your turn—select the optimal move and output JSON only."""
 )
+
 
 
 user_prompt = ChatPromptTemplate.from_template(
@@ -95,16 +91,14 @@ Valid moves: {valid_moves}
 chain = system_prompt + user_prompt | llm
 
 
-board_state = [[Piece('r', 2, is_dama=False), '*'], 'X', [Piece('r', -5, is_dama=False), '/'], 'X', [Piece('r', 8, is_dama=False), '-'], 'X', [Piece('r', -11, is_dama=False), '+'], 'X', 'X', [Piece('r', -7, is_dama=False), '/'], 'X', [Piece('r', 10, is_dama=False), '*'], 'X', [Piece('r', -3, is_dama=False), '+'], 'X', [Piece('r', 0, is_dama=False), '-'], [Piece('r', 4, is_dama=False), '-'], 'X', [Piece('r', -1, is_dama=False), '+'], 'X', [Piece('r', 6, is_dama=False), '*'], 'X', [Piece('r', -9, is_dama=False), '/'], 'X', 'X', [None, '+'], 'X', [None, '-'], 'X', [None, '/'], 'X', [None, '*'], [None, '*'], 'X', [Piece('b', 6, is_dama=False), '/'], 'X', [None, '-'], 'X', [None, '+'], 'X', 'X', [Piece('b', -9, is_dama=False), '/'], 'X', [None, '*'], 'X', [Piece('b', -1, is_dama=False), '+'], 'X', [Piece('b', 4, is_dama=False), '-'], [Piece('b', 0, is_dama=False), '-'], 'X', [Piece('b', -3, is_dama=False), '+'], 'X', [Piece('b', 10, is_dama=False), '*'], 'X', [Piece('b', -7, is_dama=False), '/'], 'X', 'X', [Piece('b', -11, is_dama=False), '+'], 'X', [Piece('b', 8, is_dama=False), '-'], 'X', [Piece('b', -5, is_dama=False), '/'], 'X', [Piece('b', 2, is_dama=False), '*']]
+board_state = [[Piece('r', 2, is_dama=False), '*'], 'X', [Piece('r', -5, is_dama=False), '/'], 'X', [Piece('r', 8, is_dama=False), '-'], 'X', [Piece('r', -11, is_dama=False), '+'], 'X', 'X', [Piece('r', -7, is_dama=False), '/'], 'X', [Piece('r', 10, is_dama=False), '*'], 'X', [Piece('r', -3, is_dama=False), '+'], 'X', [Piece('r', 0, is_dama=False), '-'], [Piece('r', 4, is_dama=False), '-'], 'X', [Piece('r', -1, is_dama=False), '+'], 'X', [Piece('r', 6, is_dama=False), '*'], 'X', [Piece('r', -9, is_dama=False), '/'], 'X', 'X', [None, '+'], 'X', [None, '-'], 'X', [None, '/'], 'X', [None, '*'], [Piece('b', -9, is_dama=False), '*'], 'X', [None, '/'], 'X', [None, '-'], 'X', [None, '+'], 'X', 'X', [None, '/'], 'X', [Piece('b', 6, is_dama=False), '*'], 'X', [Piece('b', -1, is_dama=False), '+'], 'X', [Piece('b', 4, is_dama=False), '-'], [Piece('b', 0, is_dama=False), '-'], 'X', [Piece('b', -3, is_dama=False), '+'], 'X', [Piece('b', 10, is_dama=False), '*'], 'X', [Piece('b', -7, is_dama=False), '/'], 'X', 'X', [Piece('b', -11, is_dama=False), '+'], 'X', [Piece('b', 8, is_dama=False), '-'], 'X', [Piece('b', -5, is_dama=False), '/'], 'X', [Piece('b', 2, is_dama=False), '*']]
 
+valid_moves = [[16, 25], [18, 25], [18, 27], [20, 27], [20, 29], [22, 29], [22, 31]]
 
-valid_moves = {
-    16: [25],
-    18: [25, 27],
-    20: [27, 29],
-    22: [29, 31],
-}
-
+print({
+    "board_state": board_state,
+    "valid_moves": valid_moves,
+})
 
 response = chain.invoke({
     "board_state": board_state,
