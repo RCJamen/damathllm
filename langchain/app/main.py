@@ -165,7 +165,7 @@ def board_to_move(request: BoardRequest):
     """)
 
     capture_template = ChatPromptTemplate.from_template("""
-    You are given a dictionary named "results" that may contain two keys: "normal_captures" and "dama_captures".
+    You are given a dictionary named "results" that may contain either one of these two keys: "normal_captures" and "dama_captures".
 
     Each of these keys maps to a dictionary:
     - In "normal_captures", keys are integers, and values are lists of integers.
@@ -206,19 +206,37 @@ def board_to_move(request: BoardRequest):
     # Return only the final JSON with key "captures".
     # """)
 
+    from pydantic import BaseModel, Field
+    from typing import Dict, List
+
+    class MovesSchema(BaseModel):
+        moves: Dict[int, List[int]] = Field(
+            ..., description="Mapping from key to list of values"
+        )
+    class CapturesSchema(BaseModel):
+        captures: Dict[int, List[int]] = Field(
+            ..., description="Mapping from key to list of values. These should come from either 'normal_captures' or 'dama_captures'"
+        )
+
     temperature=0
     while True:
         try:
             print("Rerun with temp:", temperature, "is_capture:", is_capture, "results:", results)
-            llm = ChatOllama(
-                model="llama3.2:3b-instruct-fp16",
+            move_llm = ChatOllama(
+                model="llama3.1:8b-instruct-fp16",
                 temperature=temperature,
-                format="json",
+                format=MovesSchema.model_json_schema(),
+            )
+
+            capture_llm = ChatOllama(
+                model="llama3.1:8b-instruct-fp16",
+                temperature=temperature,
+                format=CapturesSchema.model_json_schema(),
             )
 
             if is_capture:
                 # determiner_chain = determiner_template | llm
-                capture_chain = capture_template | llm
+                capture_chain = capture_template | capture_llm
 
                 # response = determiner_chain.invoke({
                 #     "results": results,
@@ -228,7 +246,7 @@ def board_to_move(request: BoardRequest):
                     "results": results
                 })
             else:
-                move_chain = move_template | llm
+                move_chain: dict = move_template | move_llm
 
                 response = move_chain.invoke({
                     "results": results,
@@ -236,6 +254,7 @@ def board_to_move(request: BoardRequest):
 
             filtered_results = response.content
             final_results = json.loads(filtered_results)
+            # final_results = filtered_results
             valid_moves = final_results
             print("Final Valid Moves:")
             print(valid_moves)

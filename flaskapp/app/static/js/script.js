@@ -314,7 +314,7 @@ const makeRedMove = async () => {
 
   const moveResult = await makeMove(source, destination);
 
-  await updateGameState();
+  // await updateGameState();
 
   await new Promise((resolve) => setTimeout(resolve, 3000));
 
