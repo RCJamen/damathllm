@@ -10,6 +10,9 @@ from pydantic import BaseModel
 from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
 
+last_board_state = None
+switch = False
+temperature = 0
 app = FastAPI()
 
 FLASK_BASE_URL = "http://127.0.0.1:5000"
@@ -122,6 +125,7 @@ def generate_code(request: StartRequest):
 
 @app.post("/board_to_move")
 def board_to_move(request: BoardRequest):
+    global last_board_state, switch, temperature
     try:
         board_state = eval(request.board)
     except Exception as e:
@@ -130,6 +134,8 @@ def board_to_move(request: BoardRequest):
     results = {}
 
     print(board_state)
+    # if last_board_state == board_state:
+    #     switch = not switch
 
     for test in ["normal_moves", "dama_moves", "normal_captures", "dama_captures"]:
         results[test] = get_valid_moves(test, board_state)
@@ -218,25 +224,44 @@ def board_to_move(request: BoardRequest):
             ..., description="Mapping from key to list of values. These should come from either 'normal_captures' or 'dama_captures'"
         )
 
-    temperature=0
+    # temperature=0
+    if not (last_board_state == board_state):
+        switch = False    
     while True:
+
+        switch = not switch
         try:
             print("Rerun with temp:", temperature, "is_capture:", is_capture, "results:", results)
-            move_llm = ChatOllama(
+            move_llm_3_1 = ChatOllama(
                 model="llama3.1:8b-instruct-fp16",
                 temperature=temperature,
                 format=MovesSchema.model_json_schema(),
             )
+            move_llm_3_2 = ChatOllama(
+                model="llama3.2:3b-instruct-fp16",
+                temperature=temperature,
+                format=MovesSchema.model_json_schema(),
+            )
 
-            capture_llm = ChatOllama(
+            capture_llm_3_1 = ChatOllama(
                 model="llama3.1:8b-instruct-fp16",
+                temperature=temperature,
+                format=CapturesSchema.model_json_schema(),
+            )
+            capture_llm_3_2 = ChatOllama(
+                model="llama3.2:3b-instruct-fp16",
                 temperature=temperature,
                 format=CapturesSchema.model_json_schema(),
             )
 
             if is_capture:
                 # determiner_chain = determiner_template | llm
-                capture_chain = capture_template | capture_llm
+                if switch:
+                    print("Using LLaMa 3.1")
+                    capture_chain = capture_template | capture_llm_3_1
+                else:
+                    print("Using LLaMa 3.2")
+                    capture_chain = capture_template | capture_llm_3_2
 
                 # response = determiner_chain.invoke({
                 #     "results": results,
@@ -246,7 +271,12 @@ def board_to_move(request: BoardRequest):
                     "results": results
                 })
             else:
-                move_chain: dict = move_template | move_llm
+                if switch:
+                    print("Using LLaMa 3.1")
+                    move_chain: dict = move_template | move_llm_3_1
+                else:
+                    print("Using LLaMa 3.2")
+                    move_chain: dict = move_template | move_llm_3_2
 
                 response = move_chain.invoke({
                     "results": results,
@@ -333,6 +363,7 @@ def board_to_move(request: BoardRequest):
 
         # so sako nasabtan, ang i return dari dapat kay ang move na mismo? di ko sure unsay json na format pero dapat src ug destination ra
     print("CHOICE:", chosen_piece_src, chosen_piece_dest)
+    last_board_state = board_state
     return {"source": chosen_piece_src, "destination": chosen_piece_dest}
 
 

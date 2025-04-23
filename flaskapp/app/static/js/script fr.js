@@ -119,11 +119,11 @@ const updateGameState = async () => {
 
   updateBoard();
 
-  // if (historyData.current_turn === "r" && legalMoves.valid_moves.length > 0) {
-  //   setTimeout(async () => {
-  //     await makeRedMove();
-  //   }, 500);
-  // }
+  if (historyData.current_turn === "r" && legalMoves.valid_moves.length > 0) {
+    setTimeout(async () => {
+      await makeRedMove();
+    }, 500);
+  }
 
   checkGameEnd();
 };
@@ -240,10 +240,10 @@ const updateGameInfo = () => {
 };
 
 const handleSquareClick = async (e) => {
-  // if (historyData.current_turn !== "b") {
-  //   console.log("Not your turn - waiting for Red (AI) to move");
-  //   return;
-  // }
+  if (historyData.current_turn !== "b") {
+    console.log("Not your turn - waiting for Red (AI) to move");
+    return;
+  }
 
   const clickedTile = e.target.closest(".tile");
   if (!clickedTile) return;
@@ -279,9 +279,9 @@ const handleSquareClick = async (e) => {
       const moveResult = await makeMove(sourceSquare, tileNumber);
       console.log("Move result:", moveResult);
 
-      // if (moveResult.success && historyData.current_turn === "r") {
-      //   await makeRedMove();
-      // }
+      if (moveResult.success && historyData.current_turn === "r") {
+        await makeRedMove();
+      }
     }
     clearSelection();
   }
@@ -314,7 +314,7 @@ const makeRedMove = async () => {
 
   const moveResult = await makeMove(source, destination);
 
-  await updateGameState();
+  // await updateGameState();
 
   await new Promise((resolve) => setTimeout(resolve, 3000));
 
