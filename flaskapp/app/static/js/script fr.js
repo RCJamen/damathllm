@@ -291,6 +291,8 @@ const makeRedMove = async () => {
   $("#cover-spin").show();
 
   const currentBoard = boardData.array_board;
+  const jsonboard = JSON.stringify(boardData.board);
+  console.log("JSON Board: ", jsonboard);
 
   const aiResponse = await fetch("/api/proxy_ai_move", {
     method: "POST",
@@ -299,6 +301,7 @@ const makeRedMove = async () => {
     },
     body: JSON.stringify({
       board: currentBoard,
+      jsonboard: jsonboard,
     }),
   });
 

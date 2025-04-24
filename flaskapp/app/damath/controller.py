@@ -60,7 +60,13 @@ def move_history():
 def proxy_ai_move():
     try:
         data = request.json
-        ai_response = requests.post(f'{FASTAPI_BASE_URL}/board_to_move', json=data)
+        board = data.get('board')
+        jsonboard = data.get('jsonboard')
+        ai_response = requests.post(f'{FASTAPI_BASE_URL}/board_to_move',
+            json={
+                "board": board,
+                "jsonboard": jsonboard
+            })
         ai_response.raise_for_status()
         return jsonify(ai_response.json())
     except requests.exceptions.RequestException as e:
