@@ -81,10 +81,10 @@ class Board:
                     color = 'red' if piece.color == 'r' else 'blue'
                     piece_data["piece"] = [color, piece.value, piece.is_dama]
                 json_board.append(piece_data)
-        return json.dumps({
+        return {
             "board": json_board,
             "array_board": f"{self.board}"
-        })
+        }
 
     def __repr__(self):
         return str(self.board)

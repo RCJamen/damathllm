@@ -351,8 +351,8 @@ def board_to_move(request: BoardRequest):
                         src_dest_pairs[index] = (source, dest, score)
                 print(src_dest_pairs)
             break
-        except:
-            print("Resultstovaliderror")
+        except Exception as e:
+            print("Resultstovaliderror", e)
             temperature += 0.04
             if temperature > 1:
                 temperature = 0

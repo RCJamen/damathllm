@@ -19,7 +19,7 @@ class Piece:
         return hash(self.name)
 
 normal_moves_board_state = [
-    [Piece('r', 2, is_dama=False), '*'], 'X', [Piece('r', -5, is_dama=False), '/'], 'X',
+    [Piece('b', 2, is_dama=False), '*'], 'X', [Piece('r', -5, is_dama=False), '/'], 'X',
     [Piece('r', 8, is_dama=False), '-'], 'X', [Piece('r', -11, is_dama=False), '+'], 'X',
     'X', [Piece('r', -7, is_dama=False), '/'], 'X', [Piece('r', 10, is_dama=False), '*'], 'X',
     [Piece('r', -3, is_dama=False), '+'], 'X', [Piece('r', 0, is_dama=False), '-'],
@@ -96,8 +96,7 @@ func1 should follow these logic:
 1. The function should iterate on each element of the board state. Enumerate the board state so you can get the index and the element.
 2. If the element is a string 'X', do nothing.
 3. If the element is a List, check the first element of that list.
-4. If the first element is None, do nothing. Else, if it is an instance of the Piece class, AND if the piece's color is 'r', assign an attribute 'index' to the Piece object its index (piece.index = index).
-5. Then, call the func2 function, capture its returned key:value pair, and update the valid_moves dictionary with this data.
+4. If the first element is None, do nothing. Else, if it is an instance of the Piece class, AND if the piece's color is 'r', assign an attribute 'index' to the Piece object its index (piece.index = index). Then, call the func2 function, capture its returned key:value pair, and update the valid_moves dictionary with this data.
 6. After func2 returns the key:value pair of valid moves, merge this pair into the valid_moves dictionary so that all pieces’ moves are recorded.
 7. Return the dictionary of all valid moves.
 

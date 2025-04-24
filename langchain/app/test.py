@@ -11,7 +11,7 @@ from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
 
 llm = ChatOllama(
-                model="llama3.2:3b-instruct-fp16",
+                model="llama3.1:8b-instruct-fp16",
                 temperature=1,
                 format="json",
             )
