@@ -336,6 +336,7 @@ def board_to_move(request: BoardRequest):
                             srcval = board_state[source][0].value
                             midval = board_state[middle][0].value
                             destop = board_state[dest][1]
+                            destop = "//" if destop == "/" else destop
                             print(f"{srcval}{destop}{midval}")
                             score = round(eval(f"{srcval}{destop}{midval}"))
                             capturing_is_dama = board_state[source][0].is_dama

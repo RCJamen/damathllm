@@ -126,8 +126,9 @@ class Game:
     def check_all_valid(self, turn):
         self.valid_moves = {}
         if self.last_eat:
-            chain_moves = self.check_potential_capture(self.last_eat)
+            chain_moves = self.check_potential_capture(self.last_eat) if self.last_eat.is_dama == False else self.check_dama_moves(self.last_eat)
             self.valid_moves = {self.last_eat: chain_moves}
+            
             return
 
         for index, item in enumerate(self.board.board):
@@ -381,9 +382,9 @@ class Game:
         if eaten:
             self.last_eat = selected_piece
             print("SELF LAST EAT", self.last_eat)
-            chain_moves = self.check_potential_capture(selected_piece)
+            chain_moves = self.check_potential_capture(selected_piece) if selected_piece.is_dama == False else self.check_dama_moves(selected_piece)
             print(chain_moves)
-            if chain_moves != []:
+            if chain_moves != [] and chain_moves != [(),(),(),()]:
                 self.valid_moves = {selected_piece: chain_moves}
                 return {
                     "array_board": f"{self.board}",
