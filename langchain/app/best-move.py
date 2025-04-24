@@ -23,58 +23,57 @@ class Piece:
 
 llm = ChatOllama(
     model="llama3.1:8b-instruct-fp16",
-    temperature=1,
+    temperature=.4,
     format="json"
 )
 
 
-# System prompt containing Damath context, rules, and strategies
 system_prompt = ChatPromptTemplate.from_template(
-    """
-System Prompt:
-You are an expert Damath game-playing agent. Damath rules and strategic guidelines:
+    """System Prompt:
+    You are a Damath game-playing agent that understands the board state representation.
+    The game state is provided as a JSON object with a single key "board" whose value is a list of square objects.
+    Each square object has:
+        - "position": a two-element list [index, operator], where index ∈ [0,63] is the board coordinate in row-major order and operator ∈ {{'*','/','-','+'}} denotes the arithmetic operator on that square.
+        - "piece": either null if empty, or a three-element list [color, value, is_dama], where:
+            * color ∈ {{'red','blue'}}
+            * value is an integer (positive or negative) representing the piece's numeric value
+            * is_dama is a boolean indicating king status
 
-1. **Board & Operators**:
-   - Played on the 32 white squares of an 8×8 board, each labeled with one of {{+, -, *, /}}.
-   - Men move diagonally forward; Damas (kings) move diagonally any number of empty squares.
-   - A man promotes to Dama upon reaching the opponent’s back rank (positions 0 or 63).
+    The valid_moves dictionary maps source positions to:
+    - For normal moves: a list of destination indices (e.g. [[16, 25], [18, 25], …]).
+    - For capture moves: a list of triples [source, destination, score] (e.g. [(43, 29, 0)], [(25, 43, 24)]).
 
-2. **Captures & Scoring**:
-   - Jump an enemy piece to capture it; apply the landing square’s operator to your piece’s and the captured piece’s values to compute points.
-   - Multi-jump sequences allowed. Damas can change direction mid-jump.
-   - **Forced Captures**: If any capture exists, it must be taken. Select the sequence with the highest total score.
+    1. Normal Moves (Non-captures):
+    - Consider only when no capture is available.
+    - Prioritize:
+        • Advancing toward the opponent’s back rank (especially pieces close to promotion at 63).
+        • Protecting high-value pieces (higher `value` → higher risk).
+        • Controlling central or strategic squares.
+        • Setting up future captures or blocking opponent runs.
 
-3. **Non-Capture Moves** (only when no captures available):
-   - Advance men toward promotion.
-   - Protect high-value pieces (avoid immediate recapture).
-   - Control center/strategic diagonals.
-   - Plan 2–3 plies ahead to avoid traps.
+    2. Capturing Moves (Triples):
+    - Always scan valid_moves for any capture triples ([src, dst, score]).
+    - Prefer the highest‐scoring capture sequence. If multiple captures are possible, choose the chain yielding maximal total score.
+    - Allow Dama (king) pieces to make multi-step captures if available.
 
-4. **Move Input**:
-   - The input JSON has keys:
-     * "board": list of 32 squares, each with:
-       - "position": [index, operator]
-       - "piece": null or [color, value, is_dama]
-     * "valid_moves": a list where each element is either:
-       - [src, dst] for a normal move
-       - [src, dst, score] for a capturing move
+    3. Dama/King Moves:
+    - Use only for captures or when a clear positional or material advantage outweighs a normal advance.
+    - Damas may traverse multiple empty squares; simulate landing spots for both captures and positioning.
 
-5. **Decision Logic**:
-   1. Scan valid_moves for any captures (length 3 entries). If found, pick the entry/triple with the highest score. Allow multi-step Dama captures if listed.
-   2. If no captures, evaluate all [src, dst] pairs by:
-      - Promotion potential (higher index toward back rank).
-      - Safety (landing square not immediately capturable).
-      - Positional control (center/diagonals).
+    4. Strategic Layer:
+    - **Threat Analysis:** After any move, ensure the moved piece isn’t immediately capturable.
+    - **Multi-Step Forecast:** Internally look 2–3 plies ahead (minimax-style) to avoid traps.
+    - **Balance:** Weigh material gain (capture score) vs. positional strength and promotion potential.
 
-6. **Output**:
-   - Return exactly one JSON object with:
-     {{
-       "source": <int>,
-       "destination": <int>,
-       "reason": <string>
-     }}
-   - The reason should cite the criterion.
-"""
+    5. Output:
+    - Perform full chain-of-thought internally; do not reveal it.
+    - Return **only** a JSON object with keys:
+        ```json
+        {{ "source": <int>, "destination": <int>, "reason": <string> }}
+        ```
+    - For captures, the move’s “reason” should mention the capture score and sequence rationale.
+
+    Your turn—select the optimal move and output JSON only."""
 )
 
 
@@ -82,14 +81,12 @@ You are an expert Damath game-playing agent. Damath rules and strategic guidelin
 user_prompt = ChatPromptTemplate.from_template(
     """
 User Prompt:
-Given the current board state and valid_moves list,
-choose the optimal Damath move.
-
-Board: {board_state}
+Given the current board state and valid moves,
+choose the best move and explain your reasoning.
+Board state: {board_state}
 Valid moves: {valid_moves}
 """
 )
-
 
 chain = system_prompt + user_prompt | llm
 

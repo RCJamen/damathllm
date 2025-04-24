@@ -44,6 +44,7 @@ class StartRequest(BaseModel):
 
 class BoardRequest(BaseModel):
     board: str
+    jsonboard: str
 
 
 # --- Utility Functions ---
@@ -136,6 +137,9 @@ def board_to_move(request: BoardRequest):
     print(board_state)
     # if last_board_state == board_state:
     #     switch = not switch
+
+    # FOR BEST MOVE
+    print("This is JSON Board State:", request.jsonboard)
 
     for test in ["normal_moves", "dama_moves", "normal_captures", "dama_captures"]:
         results[test] = get_valid_moves(test, board_state)
