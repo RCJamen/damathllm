@@ -230,7 +230,11 @@ def board_to_move(request: BoardRequest):
 
     # temperature=0
     if not (last_board_state == board_state):
-        switch = False    
+        switch = False
+    else:
+        temperature += 0.04
+        if temperature > 1:
+            temperature = 0
     while True:
 
         switch = not switch

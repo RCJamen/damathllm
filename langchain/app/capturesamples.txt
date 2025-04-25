@@ -1,0 +1,32 @@
+{'normal_moves': {9: [16], 18: [25, 27], 20: [27, 29], 22: [29, 31]}, 'normal_captures': {43: [29]}}
+{'normal_moves': {9: [16], 18: [27], 20: [27, 29], 22: [29, 31], 25: [32]}, 'normal_captures': {25: [43]}}
+{'normal_moves': {9: [16], 11: [20], 13: [20], 18: [25, 27]}, 'normal_captures': {22: [36]}}
+{'normal_moves': {9: [16], 11: [20], 13: [20], 18: [25, 27], 36: [43, 45]}, 'normal_captures': {13: [31], 15: [29]}}
+{'normal_moves': {4: [11, 13], 9: [18], 16: [25]}, 'dama_moves': {59: [(50,), (52, 45, 38, 31)]}, 'dama_captures': {59: [(32,)]}}
+{'normal_moves': {4: [11, 13], 9: [18], 32: [41]}, 'dama_moves': {32: [(41, 50, 59)]}, 'normal_captures': {16: [34], 32: [18]}, 'dama_captures': {32: [(18, 11)]}}
+gabinugo {'normal_moves': {4: [11, 13], 16: [25], 18: [25, 27]}, 'dama_moves': {18: [(25, 32), (27, 36, 45), (11,)]}, 'dama_captures': {18: [(63,)]}}
+
+nasakto pero naswertean
+{'normal_moves': {0: [9], 18: [25, 27], 43: [50]}, 'dama_moves': {43: [(50, 57), (34, 25, 16), (36,)]}, 'normal_captures': {43: [61]}, 'dama_captures': {43: [(61,), (22, 15)]}}
+Using LLaMa 3.2
+Final Valid Moves:
+{'captures': {'43': [50, 61]}}
+
+{'normal_moves': {0: [9], 27: [34], 41: [48, 50]}, 'dama_moves': {41: [(48,), (50, 59), (32,), (34,)]}, 'normal_captures': {27: [45]}}
+Using LLaMa 3.2
+Final Valid Moves:
+{'captures': {'0': [9], '27': [45], '41': [48, 50, 32, 34]}}
+
+
+
+{'normal_moves': {0: [9], 41: [48, 50], 45: [52, 54]}, 'dama_moves': {41: [(48,), (50, 59), (32,), (34, 27, 20, 13, 6)]}, 'normal_captures': {45: [31]}}
+Using LLaMa 3.2
+Final Valid Moves:
+{'captures': {'dama_captures': [48, 50, 59, 32, 34, 27, 20, 13, 6]}}
+Resultstovaliderror invalid literal for int() with base 10: 'dama_captures'
+
+
+{'normal_moves': {0: [9], 31: [38], 41: [48, 50]}, 'dama_moves': {41: [(48,), (50, 59), (32,), (34, 27, 20, 13, 6)]}, 'normal_captures': {31: [13]}}
+Using LLaMa 3.2
+Final Valid Moves:
+{'captures': {'31': [13], '41': [48, 50]}}
