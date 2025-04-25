@@ -6,7 +6,8 @@ import random
 import requests
 from subprocess import check_output
 from fastapi import FastAPI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ConfigDict
+from typing import Dict, List
 from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
 
@@ -175,24 +176,36 @@ def board_to_move(request: BoardRequest):
     """)
 
     capture_template = ChatPromptTemplate.from_template("""
-    You are given a dictionary named "results" that may contain either one of these two keys: "normal_captures" and "dama_captures".
+    You will be given a Python dict called results. It may contain these keys: • normal_moves, dama_moves (always ignore) • normal_captures (dict: int → list[int]) • dama_captures (dict: int → list[tuple[int,…]])
 
-    Each of these keys maps to a dictionary:
-    - In "normal_captures", keys are integers, and values are lists of integers.
-    - In "dama_captures", keys are integers, and values are lists of tuples of integers.
+    Your output must be exactly one JSON object with a single key "captures". Its value must be a dict whose keys are the piece-indices (as strings) and whose values are lists of integers.
 
-    Your task is:
-    1. Ignore the top-level keys and work only with the values of the inner dictionaries.
-    2. Choose one of the inner dictionaries:
-        - If "dama_captures" exists **and** is not empty, flatten the tuples in its values (i.e., convert each list of tuples into a list of integers), and use this dictionary.
-        - Otherwise, use the "normal_captures" dictionary.
-    3. The final result should be a JSON object with a single key "captures", whose value is the selected and possibly modified dictionary.
-    4. All keys in the final dictionary should be strings.
+    Decision logic (no exceptions):
+        If results has "dama_captures" and that dict is non-empty:
+            - Discard every other key.
+            - Flatten every tuple in each list of results["dama_captures"] into one list of ints.
+            - Return only: {{ "captures": {{ "<piece-index>": [<all flattened ints>], … }} }}
 
-    Here is the results dictionary:
-    {results}
+        Otherwise:
+            - Discard every other key.
+            - Take results["normal_captures"] (it must exist).
+            - Return only: {{ "captures": {{ "<piece-index>": [<those ints>], … }} }}
 
-    Return only the final JSON with key "captures".
+    Never emit the words "normal_captures" or "dama_captures" in your JSON. All keys inside "captures" must be the string form of the integer piece index.
+
+
+    Example 1
+    results = {{ "normal_moves": {{9:[16],11:[20]}}, "normal_captures": {{47:[61]}} }}
+    Produces:
+    {{"captures":{{"47":[61]}}}}
+
+    Example 2
+    results = {{ "normal_moves": {{47:[54]}}, "dama_moves": {{47:[(54,61),(38,29)]}}, "dama_captures":{{47:[(11,2)]}} }}
+    Produces:
+    {{"captures":{{"47":[11,2]}}}}
+
+    Here is your actual input:
+    {results} Return only the JSON object with key "captures".
     """)
 
     # capture_template = ChatPromptTemplate.from_template("""
@@ -216,8 +229,7 @@ def board_to_move(request: BoardRequest):
     # Return only the final JSON with key "captures".
     # """)
 
-    from pydantic import BaseModel, Field
-    from typing import Dict, List
+    
 
     class MovesSchema(BaseModel):
         moves: Dict[int, List[int]] = Field(
@@ -227,6 +239,7 @@ def board_to_move(request: BoardRequest):
         captures: Dict[int, List[int]] = Field(
             ..., description="Mapping from key to list of values. These should come from either 'normal_captures' or 'dama_captures'"
         )
+        model_config = ConfigDict(extra="forbid")
 
     # temperature=0
     if not (last_board_state == board_state):
@@ -375,90 +388,102 @@ def board_to_move(request: BoardRequest):
     # print("CHOICE:", chosen_piece_src, chosen_piece_dest)
     last_board_state = board_state
 
-    llm_best_move = ChatOllama(
-        model="llama3.1:8b-instruct-fp16",
-        temperature=.5,
-        format="json"
-    )
+    while src_dest_pairs != []:
+        print("\nSource-Destination Pairs:", src_dest_pairs)
+        llm_best_move = ChatOllama(
+            model="llama3.1:8b-instruct-fp16",
+            temperature=.5,
+            format="json"
+        )
 
-    best_move_prompt = ChatPromptTemplate.from_template(
-    """System Prompt:
-    You are a Damath game-playing agent that understands the board state representation.
-    The game state is provided as a JSON object with a single key "board" whose value is a list of square objects.
-    Each square object has:
-        - "position": a two-element list [index, operator], where index ∈ [0,63] is the board coordinate in row-major order and operator ∈ {{'*','/','-','+'}} denotes the arithmetic operator on that square.
-        - "piece": either null if empty, or a three-element list [color, value, is_dama], where:
-            * color ∈ {{'red','blue'}}
-            * value is an integer (positive or negative) representing the piece's numeric value
-            * is_dama is a boolean indicating king status
+        best_move_prompt = ChatPromptTemplate.from_template(
+        """System Prompt:
+        You are a Damath game-playing agent that understands the board state representation.
+        The game state is provided as a JSON object with a single key "board" whose value is a list of square objects.
+        Each square object has:
+            - "position": a two-element list [index, operator], where index ∈ [0,63] is the board coordinate in row-major order and operator ∈ {{'*','/','-','+'}} denotes the arithmetic operator on that square.
+            - "piece": either null if empty, or a three-element list [color, value, is_dama], where:
+                * color ∈ {{'red','blue'}}
+                * value is an integer (positive or negative) representing the piece's numeric value
+                * is_dama is a boolean indicating king status
 
-    The valid_moves dictionary maps source positions to:
-    - For normal moves: a list of destination indices (e.g. [[16, 25], [18, 25], …]).
-    - For capture moves: a list of triples [source, destination, score] (e.g. [(43, 29, 0)], [(25, 43, 24)]).
+        The valid_moves dictionary maps source positions to:
+        - For normal moves: a list of destination indices (e.g. [[16, 25], [18, 25], …]).
+        - For capture moves: a list of triples [source, destination, score] (e.g. [(43, 29, 0)], [(25, 43, 24)]).
 
-    **Key Rule Change:**
-    - If valid_moves contains any capture triples, automatically select and return the capture with the highest score—skip evaluating normal moves entirely.
-    - If no captures are present, fall back to normal move selection rules and omit any mention of captures in reasoning.
+        **Key Rule Change:**
+        - If valid_moves contains any capture triples, automatically select and return the capture with the highest score—skip evaluating normal moves entirely.
+        - If no captures are present, fall back to normal move selection rules and omit any mention of captures in reasoning.
 
-    1. Normal Moves (Non-captures):
-    - Consider only when no capture is available.
-    - Prioritize:
-        • Advancing toward the opponent’s back rank (especially pieces close to promotion at 63).
-        • Protecting high-value pieces (higher `value` → higher risk).
-        • Controlling central or strategic squares.
-        • Setting up future captures or blocking opponent runs.
+        1. Normal Moves (Non-captures):
+        - Consider only when no capture is available.
+        - Prioritize:
+            • Advancing toward the opponent’s back rank (especially pieces close to promotion at 63).
+            • Protecting high-value pieces (higher `value` → higher risk).
+            • Controlling central or strategic squares.
+            • Setting up future captures or blocking opponent runs.
 
-    2. Capturing Moves (Triples):
-    - Scan valid_moves for any capture triples ([src, dst, score]).
-    - Automatically choose the single capture with the highest score.
-    - For Dama pieces, allow multi-step chain captures but still select the chain with the highest total score.
+        2. Capturing Moves (Triples):
+        - Scan valid_moves for any capture triples ([src, dst, score]).
+        - Automatically choose the single capture with the positive highest score.
+        - For Dama pieces, allow multi-step chain captures but still select the chain with the highest total score.
 
-    3. Dama/King Moves:
-    - Use only for captures or when a clear positional or material advantage outweighs a normal advance.
-    - Damas may traverse multiple empty squares; simulate landing spots for both captures and positioning.
+        3. Dama/King Moves:
+        - Use only for captures or when a clear positional or material advantage outweighs a normal advance.
+        - Damas may traverse multiple empty squares; simulate landing spots for both captures and positioning.
 
-    4. Strategic Layer:
-    - **Threat Analysis:** After any move, ensure the moved piece isn’t immediately capturable.
-    - **Multi-Step Forecast:** Internally look 2–3 plies ahead (minimax-style) to avoid traps.
-    - **Balance:** Weigh material gain vs. positional strength and promotion potential.
+        4. Strategic Layer:
+        - **Threat Analysis:** After any move, ensure the moved piece isn’t immediately capturable.
+        - **Multi-Step Forecast:** Internally look 2–3 plies ahead (minimax-style) to avoid traps.
+        - **Balance:** Weigh material gain vs. positional strength and promotion potential.
 
-    5. Output:
-    - Perform full chain-of-thought internally; do not reveal it.
-    - Return **only** a JSON object with keys:
-        ```json
-        {{ "source": <int>, "destination": <int>, "reason": <string> }}
-        ```
-    - For capture moves, the move’s "reason" should mention the capture score and sequence rationale.
-    - For normal moves, the move’s "reason" should reference positional strategy (e.g., advancement, protection, control) without any capture terminology.
+        5. Output:
+        - Perform full chain-of-thought internally; do not reveal it.
+        - Return **only** a JSON object with keys:
+            ```json
+            {{ "source": <int>, "destination": <int>, "reason": <string> }}
+            ```
+        - For capture moves, the move’s "reason" should mention the capture score and sequence rationale.
+        - For normal moves, the move’s "reason" should reference positional strategy (e.g., advancement, protection, control) without any capture terminology.
 
-    Your turn—select the optimal move and output JSON only."""
-    )
-  
+        Your turn—select the optimal move and output JSON only."""
+        )
     
-    user_prompt = ChatPromptTemplate.from_template(
-    """
-    User Prompt:
-        Given the current board state and valid moves,
-        choose the best move and explain your reasoning.
-        Board state: {board_state}
-        Valid moves: {valid_moves}
-    """
-    )
+        
+        user_prompt = ChatPromptTemplate.from_template(
+        """
+        User Prompt:
+            Given the current board state and valid moves,
+            choose the best move and explain your reasoning.
+            Board state: {board_state}
+            Valid moves: {valid_moves}
+        """
+        )
 
-    chain = best_move_prompt + user_prompt | llm_best_move
+        chain = best_move_prompt + user_prompt | llm_best_move
 
-    response = chain.invoke({
-    "board_state": request.jsonboard,
-    "valid_moves": src_dest_pairs,
-    })
+        response = chain.invoke({
+        "board_state": request.jsonboard,
+        "valid_moves": src_dest_pairs,
+        })
 
-    response = json.loads(response.content)
-    source = response['source']
-    destination = response['destination']
-    # reason = response['reason']
-    print(response)
+        response = json.loads(response.content)
+        source = response['source']
+        destination = response['destination']
+        # reason = response['reason']
+        print(response)
+        
+        valid_choice = False
+        for index, item in enumerate(src_dest_pairs):
+            if isinstance(item, (list,tuple)) and list(item[:len([source, destination])]) == [source, destination]:
+                src_dest_pairs.pop(index)
+                valid_choice = True
 
-    return {"source": source, "destination": destination}
+        if not valid_choice:
+            continue
+
+
+        return {"source": source, "destination": destination}
     # return {"source": chosen_piece_src, "destination": chosen_piece_dest}
 
 
