@@ -23,7 +23,7 @@ class Piece:
 
 llm = ChatOllama(
     model="llama3.1:8b-instruct-fp16",
-    temperature=.4,
+    temperature=1,
     format="json"
 )
 
@@ -43,6 +43,10 @@ system_prompt = ChatPromptTemplate.from_template(
     - For normal moves: a list of destination indices (e.g. [[16, 25], [18, 25], …]).
     - For capture moves: a list of triples [source, destination, score] (e.g. [(43, 29, 0)], [(25, 43, 24)]).
 
+    **Key Rule Change:**
+    - If valid_moves contains any capture triples, automatically select and return the capture with the highest score—skip evaluating normal moves entirely.
+    - If no captures are present, fall back to normal move selection rules and omit any mention of captures in reasoning.
+
     1. Normal Moves (Non-captures):
     - Consider only when no capture is available.
     - Prioritize:
@@ -52,9 +56,9 @@ system_prompt = ChatPromptTemplate.from_template(
         • Setting up future captures or blocking opponent runs.
 
     2. Capturing Moves (Triples):
-    - Always scan valid_moves for any capture triples ([src, dst, score]).
-    - Prefer the highest‐scoring capture sequence. If multiple captures are possible, choose the chain yielding maximal total score.
-    - Allow Dama (king) pieces to make multi-step captures if available.
+    - Scan valid_moves for any capture triples ([src, dst, score]).
+    - Automatically choose the single capture with the highest score.
+    - For Dama pieces, allow multi-step chain captures but still select the chain with the highest total score.
 
     3. Dama/King Moves:
     - Use only for captures or when a clear positional or material advantage outweighs a normal advance.
@@ -63,7 +67,7 @@ system_prompt = ChatPromptTemplate.from_template(
     4. Strategic Layer:
     - **Threat Analysis:** After any move, ensure the moved piece isn’t immediately capturable.
     - **Multi-Step Forecast:** Internally look 2–3 plies ahead (minimax-style) to avoid traps.
-    - **Balance:** Weigh material gain (capture score) vs. positional strength and promotion potential.
+    - **Balance:** Weigh material gain vs. positional strength and promotion potential.
 
     5. Output:
     - Perform full chain-of-thought internally; do not reveal it.
@@ -71,11 +75,11 @@ system_prompt = ChatPromptTemplate.from_template(
         ```json
         {{ "source": <int>, "destination": <int>, "reason": <string> }}
         ```
-    - For captures, the move’s “reason” should mention the capture score and sequence rationale.
+    - For capture moves, the move’s "reason" should mention the capture score and sequence rationale.
+    - For normal moves, the move’s "reason" should reference positional strategy (e.g., advancement, protection, control) without any capture terminology.
 
     Your turn—select the optimal move and output JSON only."""
 )
-
 
 
 user_prompt = ChatPromptTemplate.from_template(
@@ -95,7 +99,7 @@ board_state ='{"board":[{"piece":["red",2,false],"position":[0,"*"]},{"piece":["
 
 board_state = json.loads(board_state)
 
-valid_moves = [[16, 25], [18, 25], [18, 27], [20, 27], [20, 29], [22, 29], [22, 31]]
+valid_moves = [[16, 25], [18, 25], [18, 27], [20, 27], [20, 29], [22, 29], [22, 40, 10]]
 
 print({
     "board_state": board_state,
@@ -108,3 +112,13 @@ response = chain.invoke({
 })
 
 print(response.content)
+
+response = json.loads(response.content)
+source = response['source']
+destination = response['destination']
+reason = response['reason']
+print(reason)
+
+
+
+

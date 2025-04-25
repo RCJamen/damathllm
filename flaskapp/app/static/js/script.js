@@ -1,8 +1,18 @@
 let sourceSquare = null;
+let showPieces = true;
+
 const modal = document.getElementById("gameOverModal");
 const closeModalBtn = document.getElementById("closeModalBtn");
 const closeModalX = document.getElementById("closeModal");
 const newGameModalBtn = document.getElementById("newGameModal");
+
+document.getElementById("showBoard").addEventListener("click", () => {
+  showPieces = !showPieces;             
+  updateBoard();                         
+  document.getElementById("showBoard").textContent = 
+    showPieces ? 'Hide Pieces' : 'Show Pieces';
+});
+
 
 const showModal = () => {
   modal.classList.add("show");
@@ -165,46 +175,45 @@ const updateBoard = () => {
   document.getElementById("board").style.display = "grid";
 
   boardData.board.forEach((tile) => {
-    const position = tile.position[0];
-    const operator = tile.position[1];
-    const tileElement = document.getElementById(`tile-${position}`);
+    const [pos, op] = tile.position;
+    const tileEl = document.getElementById(`tile-${pos}`);
+    tileEl.innerHTML = "";
 
-    tileElement.innerHTML = "";
-
+    // always show the operator text
     const operatorText = document.createElement("p");
     operatorText.className = "tile-text-operator";
-    operatorText.textContent = operator;
-    tileElement.appendChild(operatorText);
+    operatorText.textContent = op;
+    tileEl.appendChild(operatorText);
 
-    if (tile.piece) {
+    // ONLY render pieces if showPieces is true
+    if (showPieces && tile.piece) {
       const [color, number, isKing] = tile.piece;
 
-      const pieceElement = document.createElement("div");
-      pieceElement.className = "piece";
-      pieceElement.id = `piece-${position}`;
-      pieceElement.style.backgroundColor =
+      const pieceEl = document.createElement("div");
+      pieceEl.className = "piece";
+      pieceEl.style.backgroundColor =
         color === "red" ? "var(--red-man)" : "var(--blue-man)";
-      tileElement.appendChild(pieceElement);
+      tileEl.appendChild(pieceEl);
 
-      const numberText = document.createElement("p");
-      numberText.id = `tile-${position}-text`;
-      numberText.className =
+      const numText = document.createElement("p");
+      numText.className =
         color === "red" ? "tile-text-red" : "tile-text-blue";
-      numberText.textContent = number;
-      tileElement.appendChild(numberText);
+      numText.textContent = number;
+      tileEl.appendChild(numText);
 
       if (isKing) {
         const crownImg = document.createElement("img");
         crownImg.src = "/static/img/crown-icon.svg";
         crownImg.alt = "crown";
         crownImg.className = "crown";
-        tileElement.appendChild(crownImg);
+        tileEl.appendChild(crownImg);
       }
     }
   });
 
   updateGameInfo();
 };
+
 
 const updateGameInfo = () => {
   if (!historyData) return;

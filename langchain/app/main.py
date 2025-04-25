@@ -314,9 +314,9 @@ def board_to_move(request: BoardRequest):
                             src_dest_pairs.append([source,destination])
 
             print("SRCDEST pairs:", src_dest_pairs)
-            chosen_list = random.choice(src_dest_pairs)
-            chosen_piece_src = chosen_list[0]
-            chosen_piece_dest = chosen_list[1]
+            # chosen_list = random.choice(src_dest_pairs)
+            # chosen_piece_src = chosen_list[0]
+            # chosen_piece_dest = chosen_list[1]
 
             if src_dest_pairs != [] and is_capture:
                 for index, (source, dest) in enumerate(src_dest_pairs):
@@ -358,6 +358,8 @@ def board_to_move(request: BoardRequest):
 
                         src_dest_pairs[index] = (source, dest, score)
                 print(src_dest_pairs)
+            elif src_dest_pairs == []:
+                raise Exception("Sorry, no sulod") 
             break
         except Exception as e:
             print("Resultstovaliderror", e)
@@ -369,11 +371,95 @@ def board_to_move(request: BoardRequest):
 
 
         # source, destination, score = chosen_list # di paman gud ni need ang score ron since i randomize sa nato.
-
         # so sako nasabtan, ang i return dari dapat kay ang move na mismo? di ko sure unsay json na format pero dapat src ug destination ra
-    print("CHOICE:", chosen_piece_src, chosen_piece_dest)
+    # print("CHOICE:", chosen_piece_src, chosen_piece_dest)
     last_board_state = board_state
-    return {"source": chosen_piece_src, "destination": chosen_piece_dest}
+
+    llm_best_move = ChatOllama(
+        model="llama3.1:8b-instruct-fp16",
+        temperature=.5,
+        format="json"
+    )
+
+    best_move_prompt = ChatPromptTemplate.from_template(
+    """System Prompt:
+    You are a Damath game-playing agent that understands the board state representation.
+    The game state is provided as a JSON object with a single key "board" whose value is a list of square objects.
+    Each square object has:
+        - "position": a two-element list [index, operator], where index ∈ [0,63] is the board coordinate in row-major order and operator ∈ {{'*','/','-','+'}} denotes the arithmetic operator on that square.
+        - "piece": either null if empty, or a three-element list [color, value, is_dama], where:
+            * color ∈ {{'red','blue'}}
+            * value is an integer (positive or negative) representing the piece's numeric value
+            * is_dama is a boolean indicating king status
+
+    The valid_moves dictionary maps source positions to:
+    - For normal moves: a list of destination indices (e.g. [[16, 25], [18, 25], …]).
+    - For capture moves: a list of triples [source, destination, score] (e.g. [(43, 29, 0)], [(25, 43, 24)]).
+
+    **Key Rule Change:**
+    - If valid_moves contains any capture triples, automatically select and return the capture with the highest score—skip evaluating normal moves entirely.
+    - If no captures are present, fall back to normal move selection rules and omit any mention of captures in reasoning.
+
+    1. Normal Moves (Non-captures):
+    - Consider only when no capture is available.
+    - Prioritize:
+        • Advancing toward the opponent’s back rank (especially pieces close to promotion at 63).
+        • Protecting high-value pieces (higher `value` → higher risk).
+        • Controlling central or strategic squares.
+        • Setting up future captures or blocking opponent runs.
+
+    2. Capturing Moves (Triples):
+    - Scan valid_moves for any capture triples ([src, dst, score]).
+    - Automatically choose the single capture with the highest score.
+    - For Dama pieces, allow multi-step chain captures but still select the chain with the highest total score.
+
+    3. Dama/King Moves:
+    - Use only for captures or when a clear positional or material advantage outweighs a normal advance.
+    - Damas may traverse multiple empty squares; simulate landing spots for both captures and positioning.
+
+    4. Strategic Layer:
+    - **Threat Analysis:** After any move, ensure the moved piece isn’t immediately capturable.
+    - **Multi-Step Forecast:** Internally look 2–3 plies ahead (minimax-style) to avoid traps.
+    - **Balance:** Weigh material gain vs. positional strength and promotion potential.
+
+    5. Output:
+    - Perform full chain-of-thought internally; do not reveal it.
+    - Return **only** a JSON object with keys:
+        ```json
+        {{ "source": <int>, "destination": <int>, "reason": <string> }}
+        ```
+    - For capture moves, the move’s "reason" should mention the capture score and sequence rationale.
+    - For normal moves, the move’s "reason" should reference positional strategy (e.g., advancement, protection, control) without any capture terminology.
+
+    Your turn—select the optimal move and output JSON only."""
+    )
+  
+    
+    user_prompt = ChatPromptTemplate.from_template(
+    """
+    User Prompt:
+        Given the current board state and valid moves,
+        choose the best move and explain your reasoning.
+        Board state: {board_state}
+        Valid moves: {valid_moves}
+    """
+    )
+
+    chain = best_move_prompt + user_prompt | llm_best_move
+
+    response = chain.invoke({
+    "board_state": request.jsonboard,
+    "valid_moves": src_dest_pairs,
+    })
+
+    response = json.loads(response.content)
+    source = response['source']
+    destination = response['destination']
+    # reason = response['reason']
+    print(response)
+
+    return {"source": source, "destination": destination}
+    # return {"source": chosen_piece_src, "destination": chosen_piece_dest}
 
 
 # bag-ong endpoint for bestmove, 
@@ -385,6 +471,6 @@ def board_to_move(request: BoardRequest):
 
     {(0,18): "Bati ni cya na move kay..",
      (16,34): "Nice ni na move kay positive sa imo, unya negative if kan on niya"}
-@app.post("/board_to_move")
-def best_move(request: BoardRequest):
-    pass
+# @app.post("/board_to_move")
+# def best_move(request: BoardRequest):
+#     pass
