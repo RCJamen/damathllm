@@ -27,9 +27,20 @@ values = [
 ]
 
 class Board:
-    def __init__(self):
-        self.board = []
-        self.initialize_board()
+    def __init__(self, data=None):
+        if data is not None:
+            self.board = eval(data)
+        else:
+            self.board = []
+            self.initialize_board()
+    
+    @classmethod
+    def from_list(cls, data_list):
+        """
+        Construct a Board instance from a flat list or nested list representation.
+        """
+        b = cls(data=data_list)
+        return b
 
     def initialize_board(self):
         temp_board = []
@@ -91,11 +102,11 @@ class Board:
 
 
 class Piece:
-    def __init__(self, color, value):
+    def __init__(self, color, value, is_dama=False):
         self.value = value
         self.index = None
         self.color = color
-        self.is_dama = False
+        self.is_dama = is_dama
         self.name = f"'{color}', {value}"
         self.capture_index = {}
 
@@ -122,6 +133,9 @@ class Game:
         self.scores = {"b": 0, "r": 0}
         self.over = False
         self.last_eat = None
+
+    def set_board(self, board):
+        self.board = Board.from_list(board)
 
     def check_all_valid(self, turn):
         self.valid_moves = {}
@@ -196,10 +210,14 @@ class Game:
 
         dama_moves = []
         for direction in dama_movement.keys():
+            if piece.value == -5:
+                print("\nHi\n\n")
             starting_index = piece.index
             moves = []
             while True:
                 starting_index += dama_movement[direction]
+                if piece.value == -5:
+                    print(starting_index)
                 if starting_index < 0 or starting_index > 63:
                     break
                 if isinstance(self.board.board[starting_index][0], Piece):
@@ -218,8 +236,13 @@ class Game:
                         break
                     else:
                         break
+                elif self.board.board[starting_index] == "X":
+                    print("X", starting_index)
+                    break
                 if not self.dama_mandatory_capture and not self.has_mandatory_capture:
                     if self.board.board[starting_index][0] is None:
+                        # if piece.value == -5:
+                        #     print(starting_index)
                         moves.append(starting_index)
             if not self.dama_mandatory_capture:
                 dama_moves.append(tuple(moves))

@@ -2,7 +2,7 @@ import os
 import json
 import random
 import requests
-from flask import request, jsonify, session, render_template
+from flask import request, jsonify, session, render_template, redirect, url_for
 from .damathengine import Game
 from . import damath
 
@@ -32,6 +32,12 @@ def new_game():
 @damath.route('/api/board', methods=['GET'])
 def get_board():
     return game_instance.board.to_json()
+
+@damath.route('/api/set_board', methods=['POST'])
+def set_board():
+    data = request.get_json()
+    game_instance.set_board(data.get('board'))
+    return redirect(url_for('damath.get_board'))
 
 @damath.route('/api/valid_moves', methods=['GET'])
 def get_valid_moves():

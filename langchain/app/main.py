@@ -14,6 +14,8 @@ from langchain_core.prompts import ChatPromptTemplate
 last_board_state = None
 switch = False
 temperature = 0
+valid_choice = False
+valid_choice_pairs = []
 app = FastAPI()
 
 FLASK_BASE_URL = "http://127.0.0.1:5000"
@@ -127,7 +129,7 @@ def generate_code(request: StartRequest):
 
 @app.post("/board_to_move")
 def board_to_move(request: BoardRequest):
-    global last_board_state, switch, temperature
+    global last_board_state, switch, temperature, valid_choice, valid_choice_pairs
     try:
         board_state = eval(request.board)
     except Exception as e:
@@ -141,255 +143,256 @@ def board_to_move(request: BoardRequest):
 
     # FOR BEST MOVE
     print("This is JSON Board State:", request.jsonboard)
+    print("\n",not valid_choice,not (last_board_state == board_state),not valid_choice or not (last_board_state == board_state))
+    if not valid_choice or not (last_board_state == board_state):
+        for test in ["normal_moves", "dama_moves", "normal_captures", "dama_captures"]:
+            results[test] = get_valid_moves(test, board_state)
 
-    for test in ["normal_moves", "dama_moves", "normal_captures", "dama_captures"]:
-        results[test] = get_valid_moves(test, board_state)
+        results = clean_dict(results)
+        print("Cleaned:", results)
 
-    results = clean_dict(results)
-    print("Cleaned:", results)
+        if "dama_captures" in results.keys() or "normal_captures" in results.keys():
+            is_capture = True
+        else:
+            is_capture = False
 
-    if "dama_captures" in results.keys() or "normal_captures" in results.keys():
-        is_capture = True
-    else:
-        is_capture = False
+        move_template = ChatPromptTemplate.from_template("""
+        You are given a dictionary named "results" that contains only two keys: "normal_moves" and "dama_moves".
 
-    move_template = ChatPromptTemplate.from_template("""
-    You are given a dictionary named "results" that contains only two keys: "normal_moves" and "dama_moves".
+        Each of these keys maps to a dictionary:
+        - In "normal_moves", keys are integers, and values are lists of integers.
+        - In "dama_moves", keys are integers, and values are lists of tuples of integers.
 
-    Each of these keys maps to a dictionary:
-    - In "normal_moves", keys are integers, and values are lists of integers.
-    - In "dama_moves", keys are integers, and values are lists of tuples of integers.
+        Your task is:
+        1. Ignore the top-level keys ("normal_moves" and "dama_moves") and work only with their inner dictionaries.
+        2. Merge the two inner dictionaries into one:
+            - For each shared key, keep the value from the "dama_moves".
+            - Flatten all tuples in "dama_moves" values into one list of integers before merging.
+            - If a key only exists in one of the dictionaries, use its value directly.
+        3. The final result should be a JSON object with a single key "moves", whose value is the merged dictionary.
+        4. All keys in the final dictionary should be strings.
 
-    Your task is:
-    1. Ignore the top-level keys ("normal_moves" and "dama_moves") and work only with their inner dictionaries.
-    2. Merge the two inner dictionaries into one:
-        - For each shared key, keep the value from the "dama_moves".
-        - Flatten all tuples in "dama_moves" values into one list of integers before merging.
-        - If a key only exists in one of the dictionaries, use its value directly.
-    3. The final result should be a JSON object with a single key "moves", whose value is the merged dictionary.
-    4. All keys in the final dictionary should be strings.
+        Here is the results dictionary:
+        {results}
 
-    Here is the results dictionary:
-    {results}
+        Return only the final JSON with key "moves".
+        """)
 
-    Return only the final JSON with key "moves".
-    """)
+        capture_template = ChatPromptTemplate.from_template("""
+        You will be given a Python dict called results. It may contain these keys: • normal_moves, dama_moves (always ignore) • normal_captures (dict: int → list[int]) • dama_captures (dict: int → list[tuple[int,…]])
 
-    capture_template = ChatPromptTemplate.from_template("""
-    You will be given a Python dict called results. It may contain these keys: • normal_moves, dama_moves (always ignore) • normal_captures (dict: int → list[int]) • dama_captures (dict: int → list[tuple[int,…]])
+        Your output must be exactly one JSON object with a single key "captures". Its value must be a dict whose keys are the piece-indices (as strings) and whose values are lists of integers.
 
-    Your output must be exactly one JSON object with a single key "captures". Its value must be a dict whose keys are the piece-indices (as strings) and whose values are lists of integers.
+        Decision logic (no exceptions):
+            If results has "dama_captures" and that dict is non-empty:
+                - Discard every other key.
+                - Flatten every tuple in each list of results["dama_captures"] into one list of ints.
+                - Return only: {{ "captures": {{ "<piece-index>": [<all flattened ints>], … }} }}
 
-    Decision logic (no exceptions):
-        If results has "dama_captures" and that dict is non-empty:
-            - Discard every other key.
-            - Flatten every tuple in each list of results["dama_captures"] into one list of ints.
-            - Return only: {{ "captures": {{ "<piece-index>": [<all flattened ints>], … }} }}
+            Otherwise:
+                - Discard every other key.
+                - Take results["normal_captures"] (it must exist).
+                - Return only: {{ "captures": {{ "<piece-index>": [<those ints>], … }} }}
 
-        Otherwise:
-            - Discard every other key.
-            - Take results["normal_captures"] (it must exist).
-            - Return only: {{ "captures": {{ "<piece-index>": [<those ints>], … }} }}
-
-    Never emit the words "normal_captures" or "dama_captures" in your JSON. All keys inside "captures" must be the string form of the integer piece index.
+        Never emit the words "normal_captures" or "dama_captures" in your JSON. All keys inside "captures" must be the string form of the integer piece index.
 
 
-    Example 1
-    results = {{ "normal_moves": {{9:[16],11:[20]}}, "normal_captures": {{47:[61]}} }}
-    Produces:
-    {{"captures":{{"47":[61]}}}}
+        Example 1
+        results = {{ "normal_moves": {{9:[16],11:[20]}}, "normal_captures": {{47:[61]}} }}
+        Produces:
+        {{"captures":{{"47":[61]}}}}
 
-    Example 2
-    results = {{ "normal_moves": {{47:[54]}}, "dama_moves": {{47:[(54,61),(38,29)]}}, "dama_captures":{{47:[(11,2)]}} }}
-    Produces:
-    {{"captures":{{"47":[11,2]}}}}
+        Example 2
+        results = {{ "normal_moves": {{47:[54]}}, "dama_moves": {{47:[(54,61),(38,29)]}}, "dama_captures":{{47:[(11,2)]}} }}
+        Produces:
+        {{"captures":{{"47":[11,2]}}}}
 
-    Here is your actual input:
-    {results} Return only the JSON object with key "captures".
-    """)
+        Here is your actual input:
+        {results} Return only the JSON object with key "captures".
+        """)
 
-    # capture_template = ChatPromptTemplate.from_template("""
-    # You are given a dictionary that contains either only two keys: "normal_captures" and "dama_captures".
+        # capture_template = ChatPromptTemplate.from_template("""
+        # You are given a dictionary that contains either only two keys: "normal_captures" and "dama_captures".
 
-    # Each of these keys maps to a dictionary:
-    # - In "normal_captures", keys are integers, and values are lists of integers.
-    # - In "dama_captures", keys are integers, and values are lists of tuples of integers.
+        # Each of these keys maps to a dictionary:
+        # - In "normal_captures", keys are integers, and values are lists of integers.
+        # - In "dama_captures", keys are integers, and values are lists of tuples of integers.
 
-    # Your task is:
-    # 1. Ignore the top-level keys ("normal_captures" and "dama_captures") and work only with their inner dictionaries.
-    # 2. Choose one of the two inner dictionaries:
-    #     - If "dama_captures" has a value aside from an empty dictionary, flatten the tuples in the value, and keep this value as the remaining dictionary.
-    #     - Else, keep the "normal_captures" value which is a dictionary.
-    # 3. The final result should be a JSON object with a single key "captures", whose value is the remaining dictionary.
-    # 4. All keys in the final dictionary should be strings.
+        # Your task is:
+        # 1. Ignore the top-level keys ("normal_captures" and "dama_captures") and work only with their inner dictionaries.
+        # 2. Choose one of the two inner dictionaries:
+        #     - If "dama_captures" has a value aside from an empty dictionary, flatten the tuples in the value, and keep this value as the remaining dictionary.
+        #     - Else, keep the "normal_captures" value which is a dictionary.
+        # 3. The final result should be a JSON object with a single key "captures", whose value is the remaining dictionary.
+        # 4. All keys in the final dictionary should be strings.
 
-    # Here is the dictionary:
-    # {results}
+        # Here is the dictionary:
+        # {results}
 
-    # Return only the final JSON with key "captures".
-    # """)
+        # Return only the final JSON with key "captures".
+        # """)
 
-    
+        
 
-    class MovesSchema(BaseModel):
-        moves: Dict[int, List[int]] = Field(
-            ..., description="Mapping from key to list of values"
-        )
-    class CapturesSchema(BaseModel):
-        captures: Dict[int, List[int]] = Field(
-            ..., description="Mapping from key to list of values. These should come from either 'normal_captures' or 'dama_captures'"
-        )
-        model_config = ConfigDict(extra="forbid")
-
-    # temperature=0
-    if not (last_board_state == board_state):
-        switch = False
-    else:
-        temperature += 0.04
-        if temperature > 1:
-            temperature = 0
-    while True:
-
-        switch = not switch
-        try:
-            print("Rerun with temp:", temperature, "is_capture:", is_capture, "results:", results)
-            move_llm_3_1 = ChatOllama(
-                model="llama3.1:8b-instruct-fp16",
-                temperature=temperature,
-                format=MovesSchema.model_json_schema(),
+        class MovesSchema(BaseModel):
+            moves: Dict[int, List[int]] = Field(
+                ..., description="Mapping from key to list of values"
             )
-            move_llm_3_2 = ChatOllama(
-                model="llama3.2:3b-instruct-fp16",
-                temperature=temperature,
-                format=MovesSchema.model_json_schema(),
+        class CapturesSchema(BaseModel):
+            captures: Dict[int, List[int]] = Field(
+                ..., description="Mapping from key to list of values. These should come from either 'normal_captures' or 'dama_captures'"
             )
+            model_config = ConfigDict(extra="forbid")
 
-            capture_llm_3_1 = ChatOllama(
-                model="llama3.1:8b-instruct-fp16",
-                temperature=temperature,
-                format=CapturesSchema.model_json_schema(),
-            )
-            capture_llm_3_2 = ChatOllama(
-                model="llama3.2:3b-instruct-fp16",
-                temperature=temperature,
-                format=CapturesSchema.model_json_schema(),
-            )
-
-            if is_capture:
-                # determiner_chain = determiner_template | llm
-                if switch:
-                    print("Using LLaMa 3.1")
-                    capture_chain = capture_template | capture_llm_3_1
-                else:
-                    print("Using LLaMa 3.2")
-                    capture_chain = capture_template | capture_llm_3_2
-
-                # response = determiner_chain.invoke({
-                #     "results": results,
-                # })
-                # print("Determiner:", response.content.rstrip())
-                response = capture_chain.invoke({
-                    "results": results
-                })
-            else:
-                if switch:
-                    print("Using LLaMa 3.1")
-                    move_chain: dict = move_template | move_llm_3_1
-                else:
-                    print("Using LLaMa 3.2")
-                    move_chain: dict = move_template | move_llm_3_2
-
-                response = move_chain.invoke({
-                    "results": results,
-                })
-
-            filtered_results = response.content
-            final_results = json.loads(filtered_results)
-            # final_results = filtered_results
-            valid_moves = final_results
-            print("Final Valid Moves:")
-            print(valid_moves)
-
-            src_dest_pairs = []
-            
-            for key, value in valid_moves.items():
-                value = {int(k): eval(v) if isinstance(v, str) else eval(str([eval(str(i)) for i in v])) for k, v in value.items()}
-
-                print(key, value)
-                if key == 'captures':
-                    is_capture = True
-                for source, destinations in value.items():
-                    for destination in destinations:
-                        if isinstance(destination, tuple) or isinstance(destination, list):
-                            for item in destination:
-                                src_dest_pairs.append([source,item])
-                        else:
-                            src_dest_pairs.append([source,destination])
-
-            print("SRCDEST pairs:", src_dest_pairs)
-            # chosen_list = random.choice(src_dest_pairs)
-            # chosen_piece_src = chosen_list[0]
-            # chosen_piece_dest = chosen_list[1]
-
-            if src_dest_pairs != [] and is_capture:
-                for index, (source, dest) in enumerate(src_dest_pairs):
-                    distance = dest - source
-                    directions = [-7, -9, 7, 9]
-                    for direction in directions:
-                        if distance % direction == 0:
-                            factor = distance // direction
-                            if factor < 0:
-                                direction = abs(direction)
-                            print(f"Direction: {direction}, Multiplied by: {factor}")
-                            break
-
-                    enemy=False
-                    middle = source
-                    while middle != dest:
-                        middle += direction
-                        if isinstance(board_state[middle][0], Piece):
-
-                            if board_state[middle][0].color == 'b':
-                                enemy = True
-                                break
-                    if enemy:
-                        try:
-                            srcval = board_state[source][0].value
-                            midval = board_state[middle][0].value
-                            destop = board_state[dest][1]
-                            destop = "//" if destop == "/" else destop
-                            print(f"{srcval}{destop}{midval}")
-                            score = round(eval(f"{srcval}{destop}{midval}"))
-                            capturing_is_dama = board_state[source][0].is_dama
-                            captured_is_dama = board_state[middle][0].is_dama
-                            if capturing_is_dama and captured_is_dama:
-                                score *= 4
-                            elif capturing_is_dama or captured_is_dama:
-                                score *= 2
-                        except ZeroDivisionError:
-                            score = 0
-
-                        src_dest_pairs[index] = (source, dest, score)
-                print(src_dest_pairs)
-            elif src_dest_pairs == []:
-                raise Exception("Sorry, no sulod") 
-            break
-        except Exception as e:
-            print("Resultstovaliderror", e)
+        # temperature=0
+        if not (last_board_state == board_state):
+            switch = False
+        else:
             temperature += 0.04
             if temperature > 1:
                 temperature = 0
-            else:
-                continue
+        while True:
+
+            switch = not switch
+            try:
+                print("Rerun with temp:", temperature, "is_capture:", is_capture, "results:", results)
+                move_llm_3_1 = ChatOllama(
+                    model="llama3.1:8b-instruct-fp16",
+                    temperature=temperature,
+                    format=MovesSchema.model_json_schema(),
+                )
+                move_llm_3_2 = ChatOllama(
+                    model="llama3.2:3b-instruct-fp16",
+                    temperature=temperature,
+                    format=MovesSchema.model_json_schema(),
+                )
+
+                capture_llm_3_1 = ChatOllama(
+                    model="llama3.1:8b-instruct-fp16",
+                    temperature=temperature,
+                    format=CapturesSchema.model_json_schema(),
+                )
+                capture_llm_3_2 = ChatOllama(
+                    model="llama3.2:3b-instruct-fp16",
+                    temperature=temperature,
+                    format=CapturesSchema.model_json_schema(),
+                )
+
+                if is_capture:
+                    # determiner_chain = determiner_template | llm
+                    if switch:
+                        print("Using LLaMa 3.1")
+                        capture_chain = capture_template | capture_llm_3_1
+                    else:
+                        print("Using LLaMa 3.2")
+                        capture_chain = capture_template | capture_llm_3_2
+
+                    # response = determiner_chain.invoke({
+                    #     "results": results,
+                    # })
+                    # print("Determiner:", response.content.rstrip())
+                    response = capture_chain.invoke({
+                        "results": results
+                    })
+                else:
+                    if switch:
+                        print("Using LLaMa 3.1")
+                        move_chain: dict = move_template | move_llm_3_1
+                    else:
+                        print("Using LLaMa 3.2")
+                        move_chain: dict = move_template | move_llm_3_2
+
+                    response = move_chain.invoke({
+                        "results": results,
+                    })
+
+                filtered_results = response.content
+                final_results = json.loads(filtered_results)
+                # final_results = filtered_results
+                valid_moves = final_results
+                print("Final Valid Moves:")
+                print(valid_moves)
+
+                src_dest_pairs = []
+                
+                for key, value in valid_moves.items():
+                    value = {int(k): eval(v) if isinstance(v, str) else eval(str([eval(str(i)) for i in v])) for k, v in value.items()}
+
+                    print(key, value)
+                    if key == 'captures':
+                        is_capture = True
+                    for source, destinations in value.items():
+                        for destination in destinations:
+                            if isinstance(destination, tuple) or isinstance(destination, list):
+                                for item in destination:
+                                    src_dest_pairs.append([source,item])
+                            else:
+                                src_dest_pairs.append([source,destination])
+
+                print("SRCDEST pairs:", src_dest_pairs)
+                # chosen_list = random.choice(src_dest_pairs)
+                # chosen_piece_src = chosen_list[0]
+                # chosen_piece_dest = chosen_list[1]
+
+                if src_dest_pairs != [] and is_capture:
+                    for index, (source, dest) in enumerate(src_dest_pairs):
+                        distance = dest - source
+                        directions = [-7, -9, 7, 9]
+                        for direction in directions:
+                            if distance % direction == 0:
+                                factor = distance // direction
+                                if factor < 0:
+                                    direction = abs(direction)
+                                print(f"Direction: {direction}, Multiplied by: {factor}")
+                                break
+
+                        enemy=False
+                        middle = source
+                        while middle != dest:
+                            middle += direction
+                            if isinstance(board_state[middle][0], Piece):
+
+                                if board_state[middle][0].color == 'b':
+                                    enemy = True
+                                    break
+                        if enemy:
+                            try:
+                                srcval = board_state[source][0].value
+                                midval = board_state[middle][0].value
+                                destop = board_state[dest][1]
+                                destop = "//" if destop == "/" else destop
+                                print(f"{srcval}{destop}{midval}")
+                                score = round(eval(f"{srcval}{destop}{midval}"))
+                                capturing_is_dama = board_state[source][0].is_dama
+                                captured_is_dama = board_state[middle][0].is_dama
+                                if capturing_is_dama and captured_is_dama:
+                                    score *= 4
+                                elif capturing_is_dama or captured_is_dama:
+                                    score *= 2
+                            except ZeroDivisionError:
+                                score = 0
+
+                            src_dest_pairs[index] = (source, dest, score)
+                    print(src_dest_pairs)
+                elif src_dest_pairs == []:
+                    raise Exception("Sorry, no sulod") 
+                break
+            except Exception as e:
+                print("Resultstovaliderror", e)
+                temperature += 0.04
+                if temperature > 1:
+                    temperature = 0
+                else:
+                    continue
 
 
-        # source, destination, score = chosen_list # di paman gud ni need ang score ron since i randomize sa nato.
-        # so sako nasabtan, ang i return dari dapat kay ang move na mismo? di ko sure unsay json na format pero dapat src ug destination ra
-    # print("CHOICE:", chosen_piece_src, chosen_piece_dest)
-    last_board_state = board_state
 
-    while src_dest_pairs != []:
-        print("\nSource-Destination Pairs:", src_dest_pairs)
+        # print("CHOICE:", chosen_piece_src, chosen_piece_dest)
+        last_board_state = board_state
+        valid_choice_pairs = src_dest_pairs
+
+    while valid_choice_pairs != []:
+        print("\nSource-Destination Pairs:", valid_choice_pairs)
         llm_best_move = ChatOllama(
             model="llama3.1:8b-instruct-fp16",
             temperature=.5,
@@ -464,7 +467,7 @@ def board_to_move(request: BoardRequest):
 
         response = chain.invoke({
         "board_state": request.jsonboard,
-        "valid_moves": src_dest_pairs,
+        "valid_moves": valid_choice_pairs,
         })
 
         response = json.loads(response.content)
@@ -474,16 +477,29 @@ def board_to_move(request: BoardRequest):
         print(response)
         
         valid_choice = False
-        for index, item in enumerate(src_dest_pairs):
+        
+        
+        if valid_choice_pairs == []:
+            print("Empty na cya")
+            source = 1
+            destination = 1
+            valid_choice = False
+            break
+
+        for index, item in enumerate(valid_choice_pairs):
             if isinstance(item, (list,tuple)) and list(item[:len([source, destination])]) == [source, destination]:
-                src_dest_pairs.pop(index)
+                valid_choice_pairs.pop(index)
                 valid_choice = True
+                break
 
         if not valid_choice:
             continue
+        else:
+            break
 
-
-        return {"source": source, "destination": destination}
+    
+    print(valid_choice, source,destination)
+    return {"source": source, "destination": destination}
     # return {"source": chosen_piece_src, "destination": chosen_piece_dest}
 
 
