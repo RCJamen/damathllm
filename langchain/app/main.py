@@ -391,9 +391,10 @@ def board_to_move(request: BoardRequest):
         last_board_state = board_state
         valid_choice_pairs = src_dest_pairs
 
-    while valid_choice_pairs != []:
-        print("\nSource-Destination Pairs:", valid_choice_pairs)
-        llm_best_move = ChatOllama(
+    while src_dest_pairs != []:
+        print("\nSource-Destination Pairs:", src_dest_pairs)
+        
+        llm_best_choice = ChatOllama(
             model="llama3.1:8b-instruct-fp16",
             temperature=.5,
             format="json"
@@ -402,56 +403,76 @@ def board_to_move(request: BoardRequest):
         best_move_prompt = ChatPromptTemplate.from_template(
         """System Prompt:
         You are a Damath game-playing agent that understands the board state representation.
-        The game state is provided as a JSON object with a single key "board" whose value is a list of square objects.
+        The game state is provided as a JSON format where the value is a list of square objects.
         Each square object has:
-            - "position": a two-element list [index, operator], where index ∈ [0,63] is the board coordinate in row-major order and operator ∈ {{'*','/','-','+'}} denotes the arithmetic operator on that square.
-            - "piece": either null if empty, or a three-element list [color, value, is_dama], where:
+            - \"position\": a two-element list [index, operator], where index ∈ [0,63] is the board coordinate in row-major order and operator ∈ {{'*','/','-','+'}} denotes the arithmetic operator on that square.
+            - \"piece\": either null if empty, or a three-element list [color, value, is_dama], where:
                 * color ∈ {{'red','blue'}}
                 * value is an integer (positive or negative) representing the piece's numeric value
                 * is_dama is a boolean indicating king status
 
-        The valid_moves dictionary maps source positions to:
-        - For normal moves: a list of destination indices (e.g. [[16, 25], [18, 25], …]).
-        - For capture moves: a list of triples [source, destination, score] (e.g. [(43, 29, 0)], [(25, 43, 24)]).
+        The valid_moves list is a source-destination list with a pair indices [[source, dest], [source, dest]].
 
-        **Key Rule Change:**
-        - If valid_moves contains any capture triples, automatically select and return the capture with the highest score—skip evaluating normal moves entirely.
-        - If no captures are present, fall back to normal move selection rules and omit any mention of captures in reasoning.
+        **Normal Move Priorities:**
+        1. Advancing toward the opponent’s back rank (especially pieces near promotion at index 63).
+        2. Protecting high-value pieces (value indicates risk level).
+        3. Controlling central or strategic squares.
+        4. Setting up future captures or blocking opponent runs.
 
-        1. Normal Moves (Non-captures):
-        - Consider only when no capture is available.
-        - Prioritize:
-            • Advancing toward the opponent’s back rank (especially pieces close to promotion at 63).
-            • Protecting high-value pieces (higher `value` → higher risk).
-            • Controlling central or strategic squares.
-            • Setting up future captures or blocking opponent runs.
+        **Dama/King Considerations:**
+        - Use Dama moves only if a clear positional or material advantage outweighs a normal advance.
+        - Damas may traverse multiple empty squares; simulate landing spots for positioning.
 
-        2. Capturing Moves (Triples):
-        - Scan valid_moves for any capture triples ([src, dst, score]).
-        - Automatically choose the single capture with the positive highest score.
-        - For Dama pieces, allow multi-step chain captures but still select the chain with the highest total score.
+        **Strategic Layer:**
+        - Threat Analysis: Avoid leaving the moved piece immediately capturable.
+        - Multi-Ply Forecast: Internally look 2–3 plies ahead to avoid traps.
+        - Balance material gain vs. positional strength and promotion potential.
 
-        3. Dama/King Moves:
-        - Use only for captures or when a clear positional or material advantage outweighs a normal advance.
-        - Damas may traverse multiple empty squares; simulate landing spots for both captures and positioning.
+        **Output:**
+        Return only a JSON object with keys:
+        {{
+        \"source\": <int>,
+        \"destination\": <int>,
+        \"reason\": <string>
+        }}
+        The reason should reference positional strategy (advancement, protection, control).
 
-        4. Strategic Layer:
-        - **Threat Analysis:** After any move, ensure the moved piece isn’t immediately capturable.
-        - **Multi-Step Forecast:** Internally look 2–3 plies ahead (minimax-style) to avoid traps.
-        - **Balance:** Weigh material gain vs. positional strength and promotion potential.
-
-        5. Output:
-        - Perform full chain-of-thought internally; do not reveal it.
-        - Return **only** a JSON object with keys:
-            ```json
-            {{ "source": <int>, "destination": <int>, "reason": <string> }}
-            ```
-        - For capture moves, the move’s "reason" should mention the capture score and sequence rationale.
-        - For normal moves, the move’s "reason" should reference positional strategy (e.g., advancement, protection, control) without any capture terminology.
-
-        Your turn—select the optimal move and output JSON only."""
+        Your turn—select the optimal normal move and output JSON only.
+        """
         )
-    
+
+        best_capture_prompt = ChatPromptTemplate.from_template(
+        """System Prompt:
+        You are a Damath game-playing agent that understands the board state representation.
+        The game state is provided as a JSON format where the value is a list of square objects.
+        Each square object has:
+            - \"position\": a two-element list [index, operator], where index ∈ [0,63] is the board coordinate in row-major order and operator ∈ {{'*','/','-','+'}} denotes the arithmetic operator on that square.
+            - \"piece\": either null if empty, or a three-element list [color, value, is_dama], where:
+                * color ∈ {{'red','blue'}}
+                * value is an integer (positive or negative) representing the piece's numeric value
+                * is_dama is a boolean indicating king status
+
+        The valid_moves list maps source positions to a list of triples [source, destination, score] (e.g. [(43, 29, 0)], [(25, 43, 24)]).
+
+        **Capture Selection Rules:**
+        1. Normal captures occur at offsets +14, -14, +18, -18. After moving to a capture destination, assess whether additional captures are possible from that new square.
+        2. Automatically choose the single capture with the highest positive score, avoid negative scores you will lose some points.
+        3. For Dama pieces, consider multi-step capture chains: captures may still occur at offsets ±14 and ±18, including longer jumps where the offset is a multiple of 14 (i.e., 7*2) or 18 (i.e., 9*2) to maximize total score.
+        4. Perform full internal chain-of-thought; do not reveal it.
+
+        **Output:**
+        Return only a JSON object with keys:
+        {{
+        \"source\": <int>,
+        \"destination\": <int>,
+        \"reason\": <string>
+        }}
+        The reason should reference the capture score and the sequence rationale.
+
+        Your turn—select the best capture and output JSON only.
+        """
+    )
+
         
         user_prompt = ChatPromptTemplate.from_template(
         """
@@ -463,7 +484,10 @@ def board_to_move(request: BoardRequest):
         """
         )
 
-        chain = best_move_prompt + user_prompt | llm_best_move
+        if is_capture:
+            chain = best_capture_prompt + user_prompt | llm_best_choice
+        else:
+            chain = best_move_prompt + user_prompt | llm_best_choice
 
         response = chain.invoke({
         "board_state": request.jsonboard,
