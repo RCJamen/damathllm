@@ -27,9 +27,20 @@ values = [
 ]
 
 class Board:
-    def __init__(self):
-        self.board = []
-        self.initialize_board()
+    def __init__(self, data=None):
+        if data is not None:
+            self.board = eval(data)
+        else:
+            self.board = []
+            self.initialize_board()
+    
+    @classmethod
+    def from_list(cls, data_list):
+        """
+        Construct a Board instance from a flat list or nested list representation.
+        """
+        b = cls(data=data_list)
+        return b
 
     def initialize_board(self):
         temp_board = []
@@ -81,21 +92,21 @@ class Board:
                     color = 'red' if piece.color == 'r' else 'blue'
                     piece_data["piece"] = [color, piece.value, piece.is_dama]
                 json_board.append(piece_data)
-        return json.dumps({
+        return {
             "board": json_board,
             "array_board": f"{self.board}"
-        })
+        }
 
     def __repr__(self):
         return str(self.board)
 
 
 class Piece:
-    def __init__(self, color, value):
+    def __init__(self, color, value, is_dama=False):
         self.value = value
         self.index = None
         self.color = color
-        self.is_dama = False
+        self.is_dama = is_dama
         self.name = f"'{color}', {value}"
         self.capture_index = {}
 
@@ -123,11 +134,15 @@ class Game:
         self.over = False
         self.last_eat = None
 
+    def set_board(self, board):
+        self.board = Board.from_list(board)
+
     def check_all_valid(self, turn):
         self.valid_moves = {}
         if self.last_eat:
-            chain_moves = self.check_potential_capture(self.last_eat)
+            chain_moves = self.check_potential_capture(self.last_eat) if self.last_eat.is_dama == False else self.check_dama_moves(self.last_eat)
             self.valid_moves = {self.last_eat: chain_moves}
+            
             return
 
         for index, item in enumerate(self.board.board):
@@ -195,10 +210,14 @@ class Game:
 
         dama_moves = []
         for direction in dama_movement.keys():
+            if piece.value == -5:
+                print("\nHi\n\n")
             starting_index = piece.index
             moves = []
             while True:
                 starting_index += dama_movement[direction]
+                if piece.value == -5:
+                    print(starting_index)
                 if starting_index < 0 or starting_index > 63:
                     break
                 if isinstance(self.board.board[starting_index][0], Piece):
@@ -217,8 +236,13 @@ class Game:
                         break
                     else:
                         break
+                elif self.board.board[starting_index] == "X":
+                    print("X", starting_index)
+                    break
                 if not self.dama_mandatory_capture and not self.has_mandatory_capture:
                     if self.board.board[starting_index][0] is None:
+                        # if piece.value == -5:
+                        #     print(starting_index)
                         moves.append(starting_index)
             if not self.dama_mandatory_capture:
                 dama_moves.append(tuple(moves))
@@ -381,9 +405,9 @@ class Game:
         if eaten:
             self.last_eat = selected_piece
             print("SELF LAST EAT", self.last_eat)
-            chain_moves = self.check_potential_capture(selected_piece)
+            chain_moves = self.check_potential_capture(selected_piece) if selected_piece.is_dama == False else self.check_dama_moves(selected_piece)
             print(chain_moves)
-            if chain_moves != []:
+            if chain_moves != [] and chain_moves != [(),(),(),()]:
                 self.valid_moves = {selected_piece: chain_moves}
                 return {
                     "array_board": f"{self.board}",
@@ -393,7 +417,7 @@ class Game:
                 }
             else:
                 self.last_eat = None
-                
+
         self.current_move = "r" if self.current_move == "b" else "b"
         self.has_mandatory_capture = False
         self.has_mandatory_capture_check = False
@@ -402,7 +426,8 @@ class Game:
         # self.check_all_valid(self.current_move)
 
         return {
-            "array_board": f"{self.board}",
+            "json_board": self.board.to_json(),
+            # "array_board": f"{self.board}",
             "current_turn": self.current_move,
             "scores": self.scores,
             "move_history": self.move_history,

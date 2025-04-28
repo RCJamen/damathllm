@@ -2,7 +2,7 @@ import os
 import json
 import random
 import requests
-from flask import request, jsonify, session, render_template
+from flask import request, jsonify, session, render_template, redirect, url_for
 from .damathengine import Game
 from . import damath
 
@@ -33,6 +33,12 @@ def new_game():
 def get_board():
     return game_instance.board.to_json()
 
+@damath.route('/api/set_board', methods=['POST'])
+def set_board():
+    data = request.get_json()
+    game_instance.set_board(data.get('board'))
+    return redirect(url_for('damath.get_board'))
+
 @damath.route('/api/valid_moves', methods=['GET'])
 def get_valid_moves():
     game_instance.check_all_valid(game_instance.current_move)
@@ -60,7 +66,13 @@ def move_history():
 def proxy_ai_move():
     try:
         data = request.json
-        ai_response = requests.post(f'{FASTAPI_BASE_URL}/board_to_move', json=data)
+        board = data.get('board')
+        jsonboard = data.get('jsonboard')
+        ai_response = requests.post(f'{FASTAPI_BASE_URL}/board_to_move',
+            json={
+                "board": board,
+                "jsonboard": jsonboard
+            })
         ai_response.raise_for_status()
         return jsonify(ai_response.json())
     except requests.exceptions.RequestException as e:
