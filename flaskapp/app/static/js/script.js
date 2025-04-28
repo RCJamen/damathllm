@@ -6,12 +6,28 @@ const closeModalBtn = document.getElementById("closeModalBtn");
 const closeModalX = document.getElementById("closeModal");
 const newGameModalBtn = document.getElementById("newGameModal");
 
-document.getElementById("showBoard").addEventListener("click", () => {
-  showPieces = !showPieces;             
-  updateBoard();                         
-  document.getElementById("showBoard").textContent = 
-    showPieces ? 'Hide Pieces' : 'Show Pieces';
-});
+const btn = document.getElementById("showBoard");
+
+btn.addEventListener("mousedown", onPress);
+btn.addEventListener("touchstart", onPress);
+
+btn.addEventListener("mouseup",   onRelease);
+btn.addEventListener("mouseleave", onRelease);  // in case pointer drifts off
+btn.addEventListener("touchend",  onRelease);
+btn.addEventListener("touchcancel", onRelease);
+
+function onPress(e) {
+  e.preventDefault();           // prevent any click-through
+  showPieces = false;           // hide while held
+  updateBoard();
+  btn.textContent = "Show Pieces";
+}
+
+function onRelease(e) {
+  showPieces = true;            // show again on release
+  updateBoard();
+  btn.textContent = "Hide Pieces";
+}
 
 
 const showModal = () => {
@@ -186,26 +202,36 @@ const updateBoard = () => {
     tileEl.appendChild(operatorText);
 
     // ONLY render pieces if showPieces is true
-    if (showPieces && tile.piece) {
+    if (tile.piece) {
       const [color, number, isKing] = tile.piece;
-
+    
       const pieceEl = document.createElement("div");
       pieceEl.className = "piece";
+      // color‐fill as before
       pieceEl.style.backgroundColor =
         color === "red" ? "var(--red-man)" : "var(--blue-man)";
+      
+      // new: ghost when showPieces is false
+      // you can tweak 0.3 to whatever “faded” opacity you like
+      pieceEl.style.opacity = showPieces ? "1" : "0.5";
+    
       tileEl.appendChild(pieceEl);
-
+    
       const numText = document.createElement("p");
       numText.className =
         color === "red" ? "tile-text-red" : "tile-text-blue";
       numText.textContent = number;
+      // also fade the number
+      numText.style.opacity = showPieces ? "1" : "0.5";
       tileEl.appendChild(numText);
-
+    
       if (isKing) {
         const crownImg = document.createElement("img");
         crownImg.src = "/static/img/crown-icon.svg";
         crownImg.alt = "crown";
         crownImg.className = "crown";
+        // fade the crown too
+        crownImg.style.opacity = showPieces ? "1" : "0.5";
         tileEl.appendChild(crownImg);
       }
     }
