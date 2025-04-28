@@ -452,7 +452,7 @@ def board_to_move(request: BoardRequest):
                 * value is an integer (positive or negative) representing the piece's numeric value
                 * is_dama is a boolean indicating king status
 
-        The valid_moves list maps source positions to a list of triples [source, destination, score] (e.g. [(43, 29, 0)], [(25, 43, 24)]).
+        The valid_moves is a list with tuple (source, destination, score) (e.g. [(43, 29, 0), (25, 43, 24)].
 
         **Capture Selection Rules:**
         1. Normal captures occur at offsets +14, -14, +18, -18. After moving to a capture destination, assess whether additional captures are possible from that new square.
@@ -483,6 +483,11 @@ def board_to_move(request: BoardRequest):
             Valid moves: {valid_moves}
         """
         )
+
+        is_capture = False
+        for i in valid_choice_pairs:
+            if isinstance(i, tuple):
+                is_capture = True
 
         if is_capture:
             chain = best_capture_prompt + user_prompt | llm_best_choice
