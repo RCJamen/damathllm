@@ -94,7 +94,11 @@ const clearBoard = async () => {
 };
 
 const checkGameEnd = () => {
-  if (legalMoves.valid_moves.length === 0) {
+  const noMovesAvailable =
+  legalMoves.valid_moves.length === 0 ||
+  legalMoves.valid_moves.every(move => move.destinations.length === 0);
+
+  if (noMovesAvailable) {
     setTimeout(() => {
       const blueScore = historyData.scores.b;
       const redScore = historyData.scores.r;
