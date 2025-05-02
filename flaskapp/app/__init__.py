@@ -3,6 +3,8 @@ from flask import Flask
 from flask_mysql_connector import MySQL
 from config import DB_USERNAME, DB_PASSWORD, DB_NAME, DB_HOST, SECRET_KEY
 
+print(DB_NAME, DB_USERNAME, DB_PASSWORD, DB_HOST)
+
 mysql = MySQL()
 
 def create_app():
@@ -16,6 +18,7 @@ def create_app():
     )
 
     mysql.init_app(app)
+    print(mysql)
 
     from .damath import damath
     app.register_blueprint(damath)

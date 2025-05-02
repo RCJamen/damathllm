@@ -115,7 +115,20 @@ const checkGameEnd = () => {
         winner = "Tie";
         winnerColor = "var(--neutral)";
       }
-
+     
+      console.log(historyData)
+      const response = fetch("/api/add_game_history", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          move_history: historyData.move_history,
+          scores: historyData.scores,
+          winner: winner,
+        }),
+      });
+  
       document.getElementById("finalBlueScore").textContent = blueScore;
       document.getElementById("finalRedScore").textContent = redScore;
       const modalWinner = document.getElementById("modalWinner");
@@ -126,10 +139,13 @@ const checkGameEnd = () => {
 
       document.querySelectorAll(".tile").forEach((tile) => {
         tile.removeEventListener("click", handleSquareClick);
+      
+      
       });
     }, 2000);
+    
+  return true;
 
-    return true;
   }
   return false;
 };
@@ -149,11 +165,11 @@ const updateGameState = async () => {
 
   updateBoard();
 
-  if (historyData.current_turn === "r" && legalMoves.valid_moves.length > 0) {
-    setTimeout(async () => {
-      await makeRedMove();
-    }, 500);
-  }
+  // if (historyData.current_turn === "r" && legalMoves.valid_moves.length > 0) {
+  //   setTimeout(async () => {
+  //     await makeRedMove();
+  //   }, 500);
+  // }
 
   checkGameEnd();
 };
@@ -170,9 +186,6 @@ const makeMove = async (source, destination) => {
         destination: destination,
       }),
     });
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
 
     const result = await response.json();
     await updateGameState();
@@ -279,10 +292,10 @@ const updateGameInfo = () => {
 };
 
 const handleSquareClick = async (e) => {
-  if (historyData.current_turn !== "b") {
-    console.log("Not your turn - waiting for Red (AI) to move");
-    return;
-  }
+  // if (historyData.current_turn !== "b") {
+  //   console.log("Not your turn - waiting for Red (AI) to move");
+  //   return;
+  // }
 
   const clickedTile = e.target.closest(".tile");
   if (!clickedTile) return;
@@ -318,9 +331,9 @@ const handleSquareClick = async (e) => {
       const moveResult = await makeMove(sourceSquare, tileNumber);
       console.log("Move result:", moveResult);
 
-      if (moveResult.success && historyData.current_turn === "r") {
-        await makeRedMove();
-      }
+      // if (moveResult.success && historyData.current_turn === "r") {
+      //   await makeRedMove();
+      // }
     }
     clearSelection();
   }
@@ -407,8 +420,9 @@ $(document).ready(async () => {
     await updateGameState();
   }
 
-  document.querySelectorAll(".tile").forEach((tile) => {
-    tile.addEventListener("click", handleSquareClick);
+  document.getElementById("board").addEventListener("click", (e) => {
+    const tile = e.target.closest(".tile");
+    if (tile) handleSquareClick({ target: tile });
   });
 
   document.getElementById("newGame").addEventListener("click", async () => {
