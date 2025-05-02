@@ -1,0 +1,10 @@
+LANGSMITH_TRACING=false
+LANGSMITH_ENDPOINT="https://api.smith.langchain.com"
+LANGSMITH_API_KEY="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"
+LANGSMITH_PROJECT="damathllm"
+
+SECRET_KEY="44ujrthr44"
+DB_USERNAME="goncaryedward"
+DB_PASSWORD="root"
+DB_NAME="damathllm"
+DB_HOST="localhost"
