@@ -1,8 +1,34 @@
 let sourceSquare = null;
+let showPieces = true;
+
 const modal = document.getElementById("gameOverModal");
 const closeModalBtn = document.getElementById("closeModalBtn");
 const closeModalX = document.getElementById("closeModal");
 const newGameModalBtn = document.getElementById("newGameModal");
+
+const btn = document.getElementById("showBoard");
+
+btn.addEventListener("mousedown", onPress);
+btn.addEventListener("touchstart", onPress);
+
+btn.addEventListener("mouseup",   onRelease);
+btn.addEventListener("mouseleave", onRelease);  // in case pointer drifts off
+btn.addEventListener("touchend",  onRelease);
+btn.addEventListener("touchcancel", onRelease);
+
+function onPress(e) {
+  e.preventDefault();           // prevent any click-through
+  showPieces = false;           // hide while held
+  updateBoard();
+  btn.textContent = "Show Pieces";
+}
+
+function onRelease(e) {
+  showPieces = true;            // show again on release
+  updateBoard();
+  btn.textContent = "Hide Pieces";
+}
+
 
 const showModal = () => {
   modal.classList.add("show");
@@ -68,7 +94,11 @@ const clearBoard = async () => {
 };
 
 const checkGameEnd = () => {
-  if (legalMoves.valid_moves.length === 0) {
+  const noMovesAvailable =
+  legalMoves.valid_moves.length === 0 ||
+  legalMoves.valid_moves.every(move => move.destinations.length === 0);
+
+  if (noMovesAvailable) {
     setTimeout(() => {
       const blueScore = historyData.scores.b;
       const redScore = historyData.scores.r;
@@ -98,8 +128,40 @@ const checkGameEnd = () => {
         tile.removeEventListener("click", handleSquareClick);
       });
     }, 2000);
+    
+    console.log(historyData)
+    try {
+      const response = fetch("/api/add_game_history", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          move_history: historyData.move_history,
+          scores: historyData.scores,
+          winner: winner,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+  
+      const result =  response.json();
+      
+  
+      if (result.success) {
+        console.log("Row successfully added to database");
+      } else if (result.error) {
+        console.error("Row was not added to database:", result.error);
+      }
+  
+      return result;
+    } catch (error) {
+      console.error("Error making move:", error);
+      alert("Failed to make move. Please try again.");
+      return { success: false, error: error.message };
+    }
 
-    return true;
   }
   return false;
 };
@@ -165,46 +227,55 @@ const updateBoard = () => {
   document.getElementById("board").style.display = "grid";
 
   boardData.board.forEach((tile) => {
-    const position = tile.position[0];
-    const operator = tile.position[1];
-    const tileElement = document.getElementById(`tile-${position}`);
+    const [pos, op] = tile.position;
+    const tileEl = document.getElementById(`tile-${pos}`);
+    tileEl.innerHTML = "";
 
-    tileElement.innerHTML = "";
-
+    // always show the operator text
     const operatorText = document.createElement("p");
     operatorText.className = "tile-text-operator";
-    operatorText.textContent = operator;
-    tileElement.appendChild(operatorText);
+    operatorText.textContent = op;
+    tileEl.appendChild(operatorText);
 
+    // ONLY render pieces if showPieces is true
     if (tile.piece) {
       const [color, number, isKing] = tile.piece;
-
-      const pieceElement = document.createElement("div");
-      pieceElement.className = "piece";
-      pieceElement.id = `piece-${position}`;
-      pieceElement.style.backgroundColor =
+    
+      const pieceEl = document.createElement("div");
+      pieceEl.className = "piece";
+      // color‐fill as before
+      pieceEl.style.backgroundColor =
         color === "red" ? "var(--red-man)" : "var(--blue-man)";
-      tileElement.appendChild(pieceElement);
-
-      const numberText = document.createElement("p");
-      numberText.id = `tile-${position}-text`;
-      numberText.className =
+      
+      // new: ghost when showPieces is false
+      // you can tweak 0.3 to whatever “faded” opacity you like
+      pieceEl.style.opacity = showPieces ? "1" : "0.5";
+    
+      tileEl.appendChild(pieceEl);
+    
+      const numText = document.createElement("p");
+      numText.className =
         color === "red" ? "tile-text-red" : "tile-text-blue";
-      numberText.textContent = number;
-      tileElement.appendChild(numberText);
-
+      numText.textContent = number;
+      // also fade the number
+      numText.style.opacity = showPieces ? "1" : "0.5";
+      tileEl.appendChild(numText);
+    
       if (isKing) {
         const crownImg = document.createElement("img");
         crownImg.src = "/static/img/crown-icon.svg";
         crownImg.alt = "crown";
         crownImg.className = "crown";
-        tileElement.appendChild(crownImg);
+        // fade the crown too
+        crownImg.style.opacity = showPieces ? "1" : "0.5";
+        tileEl.appendChild(crownImg);
       }
     }
   });
 
   updateGameInfo();
 };
+
 
 const updateGameInfo = () => {
   if (!historyData) return;
@@ -291,6 +362,8 @@ const makeRedMove = async () => {
   $("#cover-spin").show();
 
   const currentBoard = boardData.array_board;
+  const jsonboard = JSON.stringify(boardData.board);
+  console.log("JSON Board: ", jsonboard);
 
   const aiResponse = await fetch("/api/proxy_ai_move", {
     method: "POST",
@@ -299,6 +372,7 @@ const makeRedMove = async () => {
     },
     body: JSON.stringify({
       board: currentBoard,
+      jsonboard: jsonboard,
     }),
   });
 

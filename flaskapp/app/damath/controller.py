@@ -5,6 +5,7 @@ import requests
 from flask import request, jsonify, session, render_template, redirect, url_for
 from .damathengine import Game
 from . import damath
+from .models import GameHistory
 
 game_instance = Game()
 
@@ -79,3 +80,32 @@ def proxy_ai_move():
         return jsonify({'error': f'Error connecting to AI service: {str(e)}'}), 503
     except Exception as e:
         return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
+    
+
+
+# Database-related routes
+@damath.route('/api/get_game_history', methods=['GET'])
+def get_game_history():
+    gamehist = GameHistory().all()
+    print(gamehist, type(gamehist))
+    return jsonify({
+        "gamehistory": gamehist
+    })
+
+
+@damath.route('/api/add_game_history', methods=['POST'])
+def add_game_history():
+    # try:
+    data = request.json
+    move_history = data.get('move_history')
+    scores = data.get('scores')
+    winner = data.get('winner')
+    print(data)
+    game_history = GameHistory(move_history=json.dumps({"move_history":move_history}),scores=scores,winner=winner)
+    game_history.add()
+
+    return 200
+    # except requests.exceptions.RequestException as e:
+    #     return jsonify({'error': f'Error adding to database: {str(e)}'}), 503
+    # except Exception as e:
+    #     return jsonify({'error': f'Unexpected error: {str(e)}'}), 500

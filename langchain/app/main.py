@@ -392,11 +392,12 @@ def board_to_move(request: BoardRequest):
         valid_choice_pairs = src_dest_pairs
 
     while valid_choice_pairs != []:
+        print("\n-----Temperature in valid_choice_pairs part:", temperature, "---------\n")
         print("\nSource-Destination Pairs:", valid_choice_pairs)
         
         llm_best_choice = ChatOllama(
             model="llama3.1:8b-instruct-fp16",
-            temperature=.5,
+            temperature=temperature,
             format="json"
         )
 
@@ -471,7 +472,7 @@ def board_to_move(request: BoardRequest):
 
         Your turn—select the best capture and output JSON only.
         """
-    )
+        )
 
         
         user_prompt = ChatPromptTemplate.from_template(
@@ -507,7 +508,10 @@ def board_to_move(request: BoardRequest):
         
         valid_choice = False
         
-        
+        temperature += 0.06
+        if temperature > 1:
+            temperature = 0
+
         if valid_choice_pairs == []:
             print("Empty na cya")
             source = 1
@@ -520,11 +524,18 @@ def board_to_move(request: BoardRequest):
                 valid_choice_pairs.pop(index)
                 valid_choice = True
                 break
+            else:
+                print("Wala cya sa valid choice pairs")
 
         if not valid_choice:
             continue
         else:
             break
+    if valid_choice_pairs == [] and valid_choice == True:
+        print("Empty na cya")
+        source = 1
+        destination = 1
+        valid_choice = False
 
     
     print(valid_choice, source,destination)

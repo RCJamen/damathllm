@@ -150,6 +150,7 @@ for test in ["normal_moves", "dama_moves", "normal_captures", "dama_captures"]:
 print("\n\nOriginal results:")
 print(results)
 
+
 def clean_dict(data):
     if isinstance(data, dict):
         cleaned = {}
@@ -217,70 +218,70 @@ print(valid_moves)
 
 
 # Get pairings next:
-src_dest_pairs = []
-is_capture = False
-for key, value in valid_moves.items():
-    value = {int(k): eval(v) if isinstance(v, str) else eval(str([eval(str(i)) for i in v])) for k, v in value.items()}
+# src_dest_pairs = []
+# is_capture = False
+# for key, value in valid_moves.items():
+#     value = {int(k): eval(v) if isinstance(v, str) else eval(str([eval(str(i)) for i in v])) for k, v in value.items()}
 
-    print(key, value)
-    if key == 'captures':
-        is_capture = True
-    for source, destinations in value.items():
-        for destination in destinations:
-            if isinstance(destination, tuple) or isinstance(destination, list):
-                for item in destination:
-                    src_dest_pairs.append([source,item])    
-            else:
-                src_dest_pairs.append([source,destination])
-print("\n\n\n")
-print("SRCDEST pairs:", src_dest_pairs)
+#     print(key, value)
+#     if key == 'captures':
+#         is_capture = True
+#     for source, destinations in value.items():
+#         for destination in destinations:
+#             if isinstance(destination, tuple) or isinstance(destination, list):
+#                 for item in destination:
+#                     src_dest_pairs.append([source,item])    
+#             else:
+#                 src_dest_pairs.append([source,destination])
+# print("\n\n\n")
+# print("SRCDEST pairs:", src_dest_pairs)
 
-if src_dest_pairs != [] and is_capture:
-# use the board state to determine score for pairs.
-# first, determine the distance
+# if src_dest_pairs != [] and is_capture:
+# # use the board state to determine score for pairs.
+# # first, determine the distance
 
 
-    for index, (source, dest) in enumerate(src_dest_pairs):
+#     for index, (source, dest) in enumerate(src_dest_pairs):
         
-        distance = dest - source
+#         distance = dest - source
 
-        directions = [-7, -9, 7, 9]
-        for direction in directions:
-            if distance % direction == 0:  
-                factor = distance // direction
-                if factor < 0:
-                    direction = abs(direction)
-                print(f"Direction: {direction}, Multiplied by: {factor}")
-                break 
+#         directions = [-7, -9, 7, 9]
+#         for direction in directions:
+#             if distance % direction == 0:  
+#                 factor = distance // direction
+#                 if factor < 0:
+#                     direction = abs(direction)
+#                 print(f"Direction: {direction}, Multiplied by: {factor}")
+#                 break 
 
-        enemy=False
-        middle = source
-        while middle != dest:
-            middle += direction
-            if isinstance(new_board_state[middle][0], Piece):
+#         enemy=False
+#         middle = source
+#         while middle != dest:
+#             middle += direction
+#             if isinstance(new_board_state[middle][0], Piece):
 
-                if new_board_state[middle][0].color == 'b':
-                    enemy = True
-                    break
-        if enemy:
-            try:
-                srcval = new_board_state[source][0].value
-                midval = new_board_state[middle][0].value
-                destop = new_board_state[dest][1]
-                print(f"{srcval}{destop}{midval}")
-                score = round(eval(f"{srcval}{destop}{midval}"))
-                capturing_is_dama = new_board_state[source][0].is_dama
-                captured_is_dama = new_board_state[middle][0].is_dama
-                if capturing_is_dama and captured_is_dama:
-                    score *= 4
-                elif capturing_is_dama or captured_is_dama:
-                    score *= 2
-            except ZeroDivisionError:
-                score = 0
+#                 if new_board_state[middle][0].color == 'b':
+#                     enemy = True
+#                     break
+#         if enemy:
+#             try:
+#                 srcval = new_board_state[source][0].value
+#                 midval = new_board_state[middle][0].value
+#                 destop = new_board_state[dest][1]
+#                 print(f"{srcval}{destop}{midval}")
+#                 score = round(eval(f"{srcval}{destop}{midval}"))
+#                 capturing_is_dama = new_board_state[source][0].is_dama
+#                 captured_is_dama = new_board_state[middle][0].is_dama
+#                 if capturing_is_dama and captured_is_dama:
+#                     score *= 4
+#                 elif capturing_is_dama or captured_is_dama:
+#                     score *= 2
+#             except ZeroDivisionError:
+#                 score = 0
 
-            src_dest_pairs[index] = (source, dest, score)
+#             src_dest_pairs[index] = (source, dest, score)
 
-    print(src_dest_pairs)
+#     print(src_dest_pairs)
 
 
 
