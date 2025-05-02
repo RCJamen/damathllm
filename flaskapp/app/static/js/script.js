@@ -115,37 +115,20 @@ const checkGameEnd = () => {
         winner = "Tie";
         winnerColor = "var(--neutral)";
       }
+     
       console.log(historyData)
-      try {
-        const response = fetch("/api/add_game_history", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            move_history: historyData.move_history,
-            scores: historyData.scores,
-            winner: winner,
-          }),
-        });
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-    
-        const result =  response.json();
-        
-    
-        if (result.success) {
-          console.log("Row successfully added to database");
-        } else if (result.error) {
-          console.error("Row was not added to database:", result.error);
-        }
-    
-        return result;
-      } catch (error) {
-        console.error("Error making move:", error);
-        alert("Failed to make move. Please try again.");
-      }
+      const response = fetch("/api/add_game_history", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          move_history: historyData.move_history,
+          scores: historyData.scores,
+          winner: winner,
+        }),
+      });
+  
       document.getElementById("finalBlueScore").textContent = blueScore;
       document.getElementById("finalRedScore").textContent = redScore;
       const modalWinner = document.getElementById("modalWinner");
@@ -203,9 +186,6 @@ const makeMove = async (source, destination) => {
         destination: destination,
       }),
     });
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
 
     const result = await response.json();
     await updateGameState();
@@ -440,8 +420,9 @@ $(document).ready(async () => {
     await updateGameState();
   }
 
-  document.querySelectorAll(".tile").forEach((tile) => {
-    tile.addEventListener("click", handleSquareClick);
+  document.getElementById("board").addEventListener("click", (e) => {
+    const tile = e.target.closest(".tile");
+    if (tile) handleSquareClick({ target: tile });
   });
 
   document.getElementById("newGame").addEventListener("click", async () => {

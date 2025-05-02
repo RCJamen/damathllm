@@ -95,7 +95,6 @@ def get_game_history():
 
 @damath.route('/api/add_game_history', methods=['POST'])
 def add_game_history():
-    # try:
     data = request.json
     move_history = data.get('move_history')
     scores = data.get('scores')
@@ -103,9 +102,4 @@ def add_game_history():
     print(data)
     game_history = GameHistory(move_history=json.dumps({"move_history":move_history}),scores=scores,winner=winner)
     game_history.add()
-
-    return 200
-    # except requests.exceptions.RequestException as e:
-    #     return jsonify({'error': f'Error adding to database: {str(e)}'}), 503
-    # except Exception as e:
-    #     return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
+    return {'message': 'Game history saved successfully'}, 200    

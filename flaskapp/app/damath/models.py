@@ -1,4 +1,5 @@
 from app import mysql
+import json
 
 class GameHistory(object):
 
@@ -9,9 +10,8 @@ class GameHistory(object):
 
     def add(self):
         cursor = mysql.connection.cursor()
-        sql = f'INSERT INTO game_history(move_history, scores, winner) \
-                VALUES("{self.move_history}", "{self.scores}", "{self.winner}")'
-        cursor.execute(sql)
+        sql = 'INSERT INTO game_history (move_history, scores, winner) VALUES (%s, %s, %s)'
+        cursor.execute(sql, (self.move_history, json.dumps(self.scores), self.winner))
         mysql.connection.commit()
 
     @classmethod
