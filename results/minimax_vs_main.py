@@ -556,11 +556,11 @@ def board_to_move(state: Game, last_board_state: list, switch: bool, temperature
             }]
 
 
-def is_game_over(state: Game, player: str) -> bool:
-    state.check_all_valid(player)
-    if (not state.valid_moves) or all(not dests for dests in state.valid_moves.values()):
-        return True
-    return False
+# def is_game_over(state: Game, player: str) -> bool:
+#     state.check_all_valid(player)
+#     if (not state.valid_moves) or all(not dests for dests in state.valid_moves.values()):
+#         return True
+#     return False
 
 
 # Game loop part
@@ -576,7 +576,8 @@ if __name__ == "__main__":
         if game_instance.current_move == "b":
             extra_args = last_board_state, switch, temperature, valid_choice, valid_choice_pairs
             # Minimax Player
-            choice = minimax_move(game_instance)
+            new_game_instance = deepcopy(game_instance)
+            choice = minimax_move(new_game_instance)
             game_instance.api_move(*choice)
             print("\n\n\n\n\nMinimax Move:", choice, "\n\n\n")
         else:

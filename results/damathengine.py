@@ -539,7 +539,21 @@ def minimax_move(state: Game):
     def choose_best_move(state: Game, max_depth: int):
         best_value = -math.inf if state.current_move==maximizer else math.inf
         state.check_all_valid(state.current_move)
-        move_list = [[piece.index, dest] for piece, dest_list in state.valid_moves.items() for dest in dest_list]
+        move_list = []
+        for key, value in state.valid_moves.items():
+            value = {key.index: value for key, value in state.valid_moves.items()}
+
+            # if key == 'captures':
+            #     is_capture = True
+            for source, destinations in value.items():
+                for destination in destinations:
+                    if isinstance(destination, tuple) or isinstance(destination, list):
+                        for item in destination:
+                            move_list.append([source,item])
+                    else:
+                        move_list.append([source,destination])
+        
+        # move_list = [[piece.index, dest] for piece, dest_list in state.valid_moves.items() for dest in dest_list]
         for move in move_list:
             new_state = deepcopy(state)
             new_state.api_move(move[0], move[1])
