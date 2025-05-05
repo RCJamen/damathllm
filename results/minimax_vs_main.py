@@ -1,61 +1,62 @@
-import subprocess
+from damathengine import Game, minimax_move, Piece
 import json
-import re
-import ast
-import random
-import requests
 import csv
 import os
-from subprocess import check_output
-from fastapi import FastAPI
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Dict, List
 from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
+from copy import deepcopy
 
-last_board_state = None
+# Interaction between the two
+"""
+The game instance is started.
+Minimax moves first.
+Input: Game object
+Output: Best Move (source, destination)
+
+LLM's turn.
+Input: Board state (Game.board)
+Output: Best Move (source, destination)
+"""
+last_board_state = []
 switch = False
 temperature = 0
 valid_choice = False
 valid_choice_pairs = []
-app = FastAPI()
+
 
 results_to_move_chain = 'results_to_move.csv'
 results_to_capture_chain = 'results_to_capture.csv'
+# class Piece:
+#     def __init__(self, color, value, is_dama=0, index=0, name=""):
+#         self.color = color
+#         self.value = value
+#         self.is_dama = is_dama
+#         self.index = index
+#         self.name = f"{color}, {value}"
 
-FLASK_BASE_URL = "http://127.0.0.1:5000"
+#     def __repr__(self):
+#         return f"Piece('{self.color}', {self.value}, is_dama={self.is_dama})"
 
-# --- Data Models and Helper Classes ---
-class Piece:
-    def __init__(self, color, value, is_dama=0, index=0, name=""):
-        self.color = color
-        self.value = value
-        self.is_dama = is_dama
-        self.index = index
-        self.name = f"{color}, {value}"
+#     def __eq__(self, other):
+#         if not isinstance(other, Piece):
+#             return False
+#         return self.name == other.name
 
-    def __repr__(self):
-        return f"Piece('{self.color}', {self.value}, is_dama={self.is_dama})"
-
-    def __eq__(self, other):
-        if not isinstance(other, Piece):
-            return False
-        return self.name == other.name
-
-    def __hash__(self):
-        return hash(self.name)
+#     def __hash__(self):
+#         return hash(self.name)
 
 
-# --- Request Models ---
-class StartRequest(BaseModel):
-    start: bool
 
-class BoardRequest(BaseModel):
-    board: str
-    jsonboard: str
+# Minimax Part
 
 
-# --- Utility Functions ---
+
+
+
+
+# LLM Part
 def reinitialize_board(board_state, new_piece_class):
     new_board = []
     for cell in board_state:
@@ -103,6 +104,8 @@ def get_valid_moves(test_name, board_state):
         return result
     except Exception as e:
         return f"Error: {str(e)}"
+    
+
 
 def clean_dict(data):
     if isinstance(data, dict):
@@ -120,25 +123,12 @@ def clean_dict(data):
         return cleaned_tuple if cleaned_tuple else None
     return data
 
-# --- Endpoints ---
-@app.post("/generate_code")
-def generate_code(request: StartRequest):
-    if request.start:
-        try:
-            subprocess.run(['bash', 'utilities/script.sh'])
-            return {"status": "completed"}
-        except Exception as e:
-            return {"status": "error", "error": str(e)}
-    else:
-        return {"status": "waiting"}
 
-@app.post("/board_to_move")
-def board_to_move(request: BoardRequest):
-    global last_board_state, switch, temperature, valid_choice, valid_choice_pairs
-    try:
-        board_state = eval(request.board)
-    except Exception as e:
-        return {"status": "error", "error": f"Invalid board format: {str(e)}"}
+
+
+def board_to_move(state: Game, last_board_state: list, switch: bool, temperature: float, valid_choice: bool, valid_choice_pairs: list):
+    board_state = deepcopy(state.board.board)
+    jsonboard = state.board.to_json()
 
     results = {}
 
@@ -147,7 +137,6 @@ def board_to_move(request: BoardRequest):
     #     switch = not switch
 
     # FOR BEST MOVE
-    print("This is JSON Board State:", request.jsonboard)
     print("\n",not valid_choice,not (last_board_state == board_state),not valid_choice or not (last_board_state == board_state))
     if not valid_choice or not (last_board_state == board_state):
         for test in ["normal_moves", "dama_moves", "normal_captures", "dama_captures"]:
@@ -358,11 +347,11 @@ def board_to_move(request: BoardRequest):
                         while middle != dest:
                             middle += direction
                             if isinstance(board_state[middle][0], Piece):
-
                                 if board_state[middle][0].color == 'b':
                                     enemy = True
                                     break
                         if enemy:
+                            print("ENEMY")
                             try:
                                 srcval = board_state[source][0].value
                                 midval = board_state[middle][0].value
@@ -379,7 +368,7 @@ def board_to_move(request: BoardRequest):
                             except ZeroDivisionError:
                                 score = 0
 
-                            src_dest_pairs[index] = (source, dest, score)
+                            src_dest_pairs[index] = [source, dest, score]
                     print(src_dest_pairs)
                 elif src_dest_pairs == []:
                     raise Exception("Sorry, no sulod") 
@@ -395,8 +384,16 @@ def board_to_move(request: BoardRequest):
 
 
         # print("CHOICE:", chosen_piece_src, chosen_piece_dest)
+        if is_capture:
+            capture_pairs = []
+            for i in range(len(src_dest_pairs)):
+                if len(src_dest_pairs[i]) == 3:
+                    capture_pairs.append(src_dest_pairs[i])
+            
+
         last_board_state = board_state
-        valid_choice_pairs = src_dest_pairs
+        valid_choice_pairs = capture_pairs if is_capture else src_dest_pairs
+
     print("CHECK NI IF MAG 503 nsd", valid_choice_pairs, valid_choice)
     while valid_choice_pairs != []:
         print("\nSource-Destination Pairs:", valid_choice_pairs)
@@ -503,7 +500,7 @@ def board_to_move(request: BoardRequest):
             chain = best_move_prompt + user_prompt | llm_best_choice
 
         response = chain.invoke({
-        "board_state": request.jsonboard,
+        "board_state": jsonboard,
         "valid_moves": valid_choice_pairs,
         })
 
@@ -549,4 +546,60 @@ def board_to_move(request: BoardRequest):
 
     
     print(valid_choice, source,destination)
-    return {"source": source, "destination": destination}
+    return  [(source,destination),
+            {
+            "last_board_state": last_board_state,
+            "switch": switch,
+            "temperature": temperature,
+            "valid_choice": valid_choice,
+            "valid_choice_pairs": valid_choice_pairs 
+            }]
+
+
+def is_game_over(state: Game, player: str) -> bool:
+    state.check_all_valid(player)
+    if (not state.valid_moves) or all(not dests for dests in state.valid_moves.values()):
+        return True
+    return False
+
+
+# Game loop part
+
+if __name__ == "__main__":
+    game_instance = Game()
+    extra_args = last_board_state, switch, temperature, valid_choice, valid_choice_pairs
+    for i in extra_args:
+        print(type(i))
+
+
+    while game_instance.is_game_over(game_instance.current_move) == False:
+        if game_instance.current_move == "b":
+            extra_args = last_board_state, switch, temperature, valid_choice, valid_choice_pairs
+            # Minimax Player
+            choice = minimax_move(game_instance)
+            game_instance.api_move(*choice)
+            print("\n\n\n\n\nMinimax Move:", choice, "\n\n\n")
+        else:
+            while True:
+                choice, extra_args = board_to_move(game_instance, *extra_args)
+                extra_args = extra_args.values()
+                # for i in extra_args:
+                #     print(i, type(i), type(extra_args))
+
+                try:
+                    game_instance.api_move(*choice)
+                    print("LLM Move:", choice)
+                    break
+                except Exception as e:
+                    print("LLM Move Error:", e)
+                    continue
+    winner = "b" if game_instance.scores['b'] > game_instance.scores['r'] else "r" if game_instance.scores['b'] < game_instance.scores['r'] else "t"
+    with open('game_results.csv', 'a', newline='') as f:
+        writer = csv.writer(f)
+        # data row—serialize list & dict to JSON so they live in one cell each
+        writer.writerow([
+            game_instance.move_history,
+            game_instance.scores,
+            winner
+        ])
+    print("Game is done! Winner is", winner, "with scores of:", game_instance.scores)

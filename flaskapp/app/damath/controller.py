@@ -3,7 +3,7 @@ import json
 import random
 import requests
 from flask import request, jsonify, session, render_template, redirect, url_for
-from .damathengine import Game
+from .damathengine import Game, minimax_move
 from . import damath
 from .models import GameHistory
 
@@ -43,6 +43,7 @@ def set_board():
 @damath.route('/api/valid_moves', methods=['GET'])
 def get_valid_moves():
     game_instance.check_all_valid(game_instance.current_move)
+    print("GETVALIDMOVES", game_instance.valid_moves)
     return game_instance.valid_moves_to_json()
 
 @damath.route('/api/move', methods=['POST'])
@@ -103,3 +104,10 @@ def add_game_history():
     game_history = GameHistory(move_history=json.dumps({"move_history":move_history}),scores=scores,winner=winner)
     game_history.add()
     return {'message': 'Game history saved successfully'}, 200    
+
+
+@damath.route('/api/minimax_move', methods=['POST'])
+def minimax_move_controller():
+    minimax_choice = minimax_move(game_instance)
+    return jsonify({"source": minimax_choice[0], "destination": minimax_choice[1]}), 200
+

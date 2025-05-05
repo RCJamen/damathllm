@@ -165,13 +165,13 @@ const updateGameState = async () => {
 
   updateBoard();
 
-  // if (historyData.current_turn === "r" && legalMoves.valid_moves.length > 0) {
-  //   setTimeout(async () => {
-  //     await makeRedMove();
-  //   }, 500);
-  // }
+  if (historyData.current_turn === "r" && legalMoves.valid_moves.length > 0) {
+    setTimeout(async () => {
+      await makeRedMove();
+    }, 500);
+  }
 
-  // checkGameEnd();
+  checkGameEnd();
 };
 
 const makeMove = async (source, destination) => {
