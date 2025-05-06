@@ -533,11 +533,12 @@ def minimax_move(state: Game):
             state.check_all_valid(state.current_move)
             move_list = [
                             [piece.index, x]
-                            for piece, dest_list in state.valid_moves.items()           # for each key and its list
-                            for dest in dest_list                       #   for each element in that list
-                            for x in (dest if isinstance(dest, tuple)    #     if it’s a tuple, iterate its contents…
-                            else [dest])                     #     otherwise treat it as a 1‑element list
-                            if x is not ()                              #     (optional) filter out any “empty” values
+                            for piece, dest_list in state.valid_moves.items()           
+                            for dest in dest_list
+                            if dest                       
+                            for x in (dest if isinstance(dest, tuple)    
+                            else [dest])                     
+                                                            
                         ]
             for move in move_list:
                 new_state = deepcopy(state)
