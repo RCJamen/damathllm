@@ -579,7 +579,15 @@ if __name__ == "__main__":
             extra_args = last_board_state, switch, temperature, valid_choice, valid_choice_pairs
             # Randomizer Player
             game_instance.check_all_valid(game_instance.current_move)
-            choice_list = [[piece.index, dest] for piece, dest_list in game_instance.valid_moves.items() for dest in dest_list]
+            # choice_list = [[piece.index, dest] for piece, dest_list in game_instance.valid_moves.items() for dest in dest_list]
+            choice_list =   [
+                                [piece.index, x]
+                                for piece, dest_list in game_instance.valid_moves.items()           # for each key and its list
+                                for dest in dest_list                       #   for each element in that list
+                                for x in (dest if isinstance(dest, tuple)    #     if it’s a tuple, iterate its contents…
+                                else [dest])                     #     otherwise treat it as a 1‑element list
+                                if x is not ()                              #     (optional) filter out any “empty” values
+                            ]
             print(choice_list)
             choice = random.choice(choice_list)
             game_instance.api_move(*choice)

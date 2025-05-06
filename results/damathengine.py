@@ -512,7 +512,14 @@ def minimax_move(state: Game):
         if state.current_move == maximizer:
             value = -math.inf
             state.check_all_valid(state.current_move)
-            move_list = [[piece.index, dest] for piece, dest_list in state.valid_moves.items() for dest in dest_list]
+            move_list = [
+                            [piece.index, x]
+                            for piece, dest_list in state.valid_moves.items()           # for each key and its list
+                            for dest in dest_list                       #   for each element in that list
+                            for x in (dest if isinstance(dest, tuple)    #     if it’s a tuple, iterate its contents…
+                            else [dest])                     #     otherwise treat it as a 1‑element list
+                            if x is not ()                              #     (optional) filter out any “empty” values
+                        ]
             for move in move_list:
                 new_state = deepcopy(state)
                 new_state.api_move(move[0], move[1])
@@ -524,7 +531,14 @@ def minimax_move(state: Game):
         else:
             value = math.inf
             state.check_all_valid(state.current_move)
-            move_list = [[piece.index, dest] for piece, dest_list in state.valid_moves.items() for dest in dest_list]
+            move_list = [
+                            [piece.index, x]
+                            for piece, dest_list in state.valid_moves.items()           # for each key and its list
+                            for dest in dest_list                       #   for each element in that list
+                            for x in (dest if isinstance(dest, tuple)    #     if it’s a tuple, iterate its contents…
+                            else [dest])                     #     otherwise treat it as a 1‑element list
+                            if x is not ()                              #     (optional) filter out any “empty” values
+                        ]
             for move in move_list:
                 new_state = deepcopy(state)
                 new_state.api_move(move[0], move[1])
