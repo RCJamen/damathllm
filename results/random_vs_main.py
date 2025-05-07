@@ -579,6 +579,7 @@ if __name__ == "__main__":
             extra_args = last_board_state, switch, temperature, valid_choice, valid_choice_pairs
             # Randomizer Player
             game_instance.check_all_valid(game_instance.current_move)
+            print("Valid Moves:", game_instance.valid_moves)
             # choice_list = [[piece.index, dest] for piece, dest_list in game_instance.valid_moves.items() for dest in dest_list]
             choice_list =   [
                                 [piece.index, x]

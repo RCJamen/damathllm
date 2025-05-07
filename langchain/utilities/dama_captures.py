@@ -1,13 +1,13 @@
 class Piece:
-    def __init__(self, color, value, is_dama=0, index=0, name=""):
+    def __init__(self, color, value, is_dama=0, index=0, name=''):
         self.color = color
         self.value = value
         self.is_dama = is_dama
         self.index = index
-        self.name = f"{color}, {value}"
+        self.name = name
 
     def __repr__(self):
-        return f"Piece('{self.color}', {self.value}, {'dama' if self.is_dama else False})"
+        return f"Piece('{self.color}', {self.value}, {'dama' if self.is_dama else ''})"
 
     def __eq__(self, other):
         return isinstance(other, Piece) and self.name == other.name
@@ -22,27 +22,22 @@ def func7(board_state):
         if element == 'X':
             continue
         elif isinstance(element, list):
-            piece = element[0]
-            if piece is None:
+            first_element = element[0]
+            if first_element is None:
                 continue
-            elif not isinstance(piece, Piece):
-                continue
-            if piece.color == 'r' and piece.is_dama:
-                piece.index = i
-                key, value = func8(piece)
-                valid_moves.update({key: value})
+            elif isinstance(first_element, Piece):
+                if first_element.color == 'r' and first_element.is_dama:
+                    func8(first_element, i)
+                    valid_moves.update({first_element.name: (i,)})
     return valid_moves
 
 
-def func8(piece):
+def func8(piece, index):
     capmoves = []
     dia = [7, 9, -7, -9]
-    src_ind = piece.index
-
     for d in dia:
-        capt_ind = src_ind + d
+        capt_ind = piece.index + d
         holder = []
-
         while 0 <= capt_ind < len(board_state) and isinstance(board_state[capt_ind], list):
             if board_state[capt_ind][0] is None:
                 capt_ind += d
@@ -54,16 +49,14 @@ def func8(piece):
                         holder.append(dest_ind)
                     else:
                         break
-                    dest_ind += d
-                break
+                dest_ind += d
             else:
                 break
-
         capmoves.append(tuple(holder))
-
     return piece.index, capmoves
 
 
+# Example usage
 board_state = [
     [Piece('r', -112, is_dama=False), '*'],
     'X',
