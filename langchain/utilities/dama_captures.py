@@ -4,13 +4,15 @@ class Piece:
         self.value = value
         self.is_dama = is_dama
         self.index = index
-        self.name = f"{color}, {value}"
+        self.name = f'{color}, {value}'
 
     def __repr__(self):
-        return f"Piece('{self.color}', {self.value}, {self.is_dama})"
+        return f'Piece({self.color}, {self.value}, is_dama={self.is_dama})'
 
     def __eq__(self, other):
-        return isinstance(other, Piece) and self.name == other.name
+        if not isinstance(other, Piece):
+            return False
+        return self.name == other.name
 
     def __hash__(self):
         return hash(self.name)
@@ -26,15 +28,16 @@ def func7(board_state):
         if isinstance(element, str) and element == 'X':
             continue
         elif isinstance(element, list):
-            piece = element[0]
-            if piece is None:
+            first_element = element[0]
+            if first_element is None:
                 continue
-            elif isinstance(piece, Piece):
+            elif isinstance(first_element, Piece):
+                piece = first_element
                 if piece.color == 'r' and piece.is_dama:
                     piece.index = i
+                    func8(piece)
                     key, value = func8(piece)
                     valid_moves.update({key: value})
-    
     return valid_moves
 
 
@@ -42,16 +45,14 @@ def func8(piece):
     capmoves = []
     dia = [7, 9, -7, -9]
     src_ind = piece.index
-    
     for d in dia:
         capt_ind = src_ind + d
         holder = []
-        
         while 0 <= capt_ind < len(board_state) and isinstance(board_state[capt_ind], list):
             if board_state[capt_ind][0] is None:
                 capt_ind += d
                 continue
-            elif board_state[capt_ind][0].color == 'b':
+            elif isinstance(board_state[capt_ind][0], Piece) and board_state[capt_ind][0].color == 'b':
                 dest_ind = capt_ind + d
                 while 0 <= dest_ind < len(board_state) and isinstance(board_state[dest_ind], list):
                     if board_state[dest_ind][0] is None:
@@ -62,10 +63,9 @@ def func8(piece):
                 break
             else:
                 break
-        
         capmoves.append(tuple(holder))
-    
     return piece.index, capmoves
 
 
+# Test the functions
 print(func7(board_state))
