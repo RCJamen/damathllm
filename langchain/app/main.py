@@ -508,9 +508,10 @@ def board_to_move(request: BoardRequest):
         })
 
         response = json.loads(response.content)
+        print(response)
         source = response['source']
         destination = response['destination']
-        # reason = response['reason']
+        reason = response['reason']
         print(response)
         
         valid_choice = False
@@ -522,6 +523,7 @@ def board_to_move(request: BoardRequest):
             print("Empty na cya")
             source = 1
             destination = 1
+            reason = "ERROR"
             valid_choice = False
             break
 
@@ -543,10 +545,11 @@ def board_to_move(request: BoardRequest):
         print("Empty na cya")
         source = 1
         destination = 1
+        reason = "ERROR"
         valid_choice = False
     elif valid_choice_pairs != []:
         valid_choice_pairs.pop(index)
 
     
     print(valid_choice, source,destination)
-    return {"source": source, "destination": destination}
+    return {"source": source, "destination": destination, "reason": reason}
