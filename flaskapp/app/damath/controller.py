@@ -1,11 +1,12 @@
-import os
 import json
-import random
 import requests
 from flask import request, jsonify, session, render_template, redirect, url_for
-from .damathengine import Game
+from .damathengine import Game, minimax_move, Piece
 from . import damath
-from .models import GameHistory
+from .models import GameHistory, MoveHistory
+
+# To remove
+from . import valid_with_scores
 
 game_instance = Game()
 
@@ -43,7 +44,14 @@ def set_board():
 @damath.route('/api/valid_moves', methods=['GET'])
 def get_valid_moves():
     game_instance.check_all_valid(game_instance.current_move)
+    print("GETVALIDMOVES", game_instance.valid_moves)
     return game_instance.valid_moves_to_json()
+
+@damath.route('/api/valid_moves_with_score', methods=['GET'])
+def get_valid_moves_with_score():
+    result = valid_with_scores.get_valid_with_scores(Piece, game_instance.board.board)
+    print({"valid_moves_with_scores": result})
+    return jsonify({"valid_moves_with_scores": result})
 
 @damath.route('/api/move', methods=['POST'])
 def make_move():
@@ -82,7 +90,6 @@ def proxy_ai_move():
         return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
     
 
-
 # Database-related routes
 @damath.route('/api/get_game_history', methods=['GET'])
 def get_game_history():
@@ -91,7 +98,6 @@ def get_game_history():
     return jsonify({
         "gamehistory": gamehist
     })
-
 
 @damath.route('/api/add_game_history', methods=['POST'])
 def add_game_history():
@@ -103,3 +109,21 @@ def add_game_history():
     game_history = GameHistory(move_history=json.dumps({"move_history":move_history}),scores=scores,winner=winner)
     game_history.add()
     return {'message': 'Game history saved successfully'}, 200    
+
+@damath.route('/api/add_move_history', methods=['POST'])
+def add_move_history():
+    data = request.json
+    color = data.get('color')
+    valid_moves = data.get('valid_moves')
+    choice = data.get('choice')
+    reasoning = data.get('reasoning')
+    print(data)
+    move_history = MoveHistory(color=color, valid_moves=valid_moves, choice=choice, reasoning=reasoning)
+    move_history.add()
+    return {'message': 'Game Move stored successfully'}, 200    
+
+@damath.route('/api/minimax_move', methods=['POST'])
+def minimax_move_controller():
+    minimax_choice = minimax_move(game_instance)
+    return jsonify({"source": minimax_choice[0], "destination": minimax_choice[1]}), 200
+
