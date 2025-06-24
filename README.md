@@ -51,6 +51,7 @@ Artificial Intelligence, Large Language Models, Board Games, Damath, LLM Agent
 git clone https://github.com/RCJamen/damathllm.git
 cd damathllm
 ````
+It is advisable to setup your own .env after cloning.
 
 ### Create and activate a Python virtual environment:
 
@@ -65,8 +66,13 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### [Install](https://github.com/ollama/ollama?tab=readme-ov-file#macos) ollama and pull models
+### Setup the database of the application
 
+```bash
+python3 setup_database.py
+```
+
+### [Install](https://github.com/ollama/ollama?tab=readme-ov-file#macos) ollama and pull models
 
 Pulling the LLM that would be used:
 
