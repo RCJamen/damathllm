@@ -115,7 +115,7 @@ const checkGameEnd = () => {
         winner = "Tie";
         winnerColor = "var(--neutral)";
       }
-     
+
       console.log(historyData)
       const response = fetch("/api/add_game_history", {
         method: "POST",
@@ -128,7 +128,7 @@ const checkGameEnd = () => {
           winner: winner,
         }),
       });
-  
+
       document.getElementById("finalBlueScore").textContent = blueScore;
       document.getElementById("finalRedScore").textContent = redScore;
       const modalWinner = document.getElementById("modalWinner");
@@ -139,11 +139,11 @@ const checkGameEnd = () => {
 
       document.querySelectorAll(".tile").forEach((tile) => {
         tile.removeEventListener("click", handleSquareClick);
-      
-      
+
+
       });
     }, 2000);
-    
+
   return true;
 
   }
@@ -165,11 +165,11 @@ const updateGameState = async () => {
 
   updateBoard();
 
-  if (historyData.current_turn === "r" && legalMoves.valid_moves.length > 0) {
-    setTimeout(async () => {
-      await makeRedMove();
-    }, 500);
-  }
+  // if (historyData.current_turn === "r" && legalMoves.valid_moves.length > 0) {
+  //   setTimeout(async () => {
+  //     await makeRedMove();
+  //   }, 500);
+  // }
 
   checkGameEnd();
 };
@@ -178,7 +178,7 @@ const makeMove = async (source, destination, reasoning = null) => {
   const res = await fetch("/api/valid_moves_with_score");
   validMovesWithScores = await res.json();
 
-  
+
   try {
     const response = await fetch("/api/move", {
       method: "POST",
@@ -201,10 +201,10 @@ const makeMove = async (source, destination, reasoning = null) => {
       console.error("Move failed:", result.error);
     }
     else {
-      
+
       const lastMove = historyData.move_history[historyData.move_history.length - 1];
       const source = lastMove[1][0];
-      const destination = lastMove[1][1]; 
+      const destination = lastMove[1][1];
       const score = lastMove[2];
       const finalMoves = (lastMove[0] === "r")
         ? validMovesWithScores["valid_moves_with_scores"]
@@ -248,19 +248,19 @@ const updateBoard = () => {
     // ONLY render pieces if showPieces is true
     if (tile.piece) {
       const [color, number, isKing] = tile.piece;
-    
+
       const pieceEl = document.createElement("div");
       pieceEl.className = "piece";
       // color‐fill as before
       pieceEl.style.backgroundColor =
         color === "red" ? "var(--red-man)" : "var(--blue-man)";
-      
+
       // new: ghost when showPieces is false
       // you can tweak 0.3 to whatever “faded” opacity you like
       pieceEl.style.opacity = showPieces ? "1" : "0.5";
-    
+
       tileEl.appendChild(pieceEl);
-    
+
       const numText = document.createElement("p");
       numText.className =
         color === "red" ? "tile-text-red" : "tile-text-blue";
@@ -268,7 +268,7 @@ const updateBoard = () => {
       // also fade the number
       numText.style.opacity = showPieces ? "1" : "0.5";
       tileEl.appendChild(numText);
-    
+
       if (isKing) {
         const crownImg = document.createElement("img");
         crownImg.src = "/static/img/crown-icon.svg";
@@ -319,10 +319,10 @@ const updateGameInfo = () => {
 };
 
 const handleSquareClick = async (e) => {
-  if (historyData.current_turn !== "b") {
-    console.log("Not your turn - waiting for Red (AI) to move");
-    return;
-  }
+  // if (historyData.current_turn !== "b") {
+  //   console.log("Not your turn - waiting for Red (AI) to move");
+  //   return;
+  // }
 
   const clickedTile = e.target.closest(".tile");
   if (!clickedTile) return;
@@ -358,9 +358,9 @@ const handleSquareClick = async (e) => {
       const moveResult = await makeMove(sourceSquare, tileNumber);
       console.log("Move result:", moveResult);
 
-      if (moveResult.success && historyData.current_turn === "r") {
-        await makeRedMove();
-      }
+      // if (moveResult.success && historyData.current_turn === "r") {
+      //   await makeRedMove();
+      // }
     }
     clearSelection();
   }
@@ -501,15 +501,15 @@ $(document).ready(async () => {
     localStorage.clear();
     await startNewGame();
   });
-  
+
   document.getElementById("clearBoard").addEventListener("click", async () => {
-    localStorage.clear(); 
+    localStorage.clear();
     await clearBoard();
   });
-  
+
   document.getElementById("miniMaxPlayer").addEventListener("click", async () => {
     localStorage.clear();
-    await startNewGame();    
+    await startNewGame();
     gameLoop();
   });
 
