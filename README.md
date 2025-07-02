@@ -1,6 +1,3 @@
-Here is your requested raw `README.md` file in markdown format:
-
-````markdown
 # Exploring the Potential of an LLM-Driven Opponent in DaMath
 
 **Authors:** Gon Vincent Alicando, Ramel Cary Jamen, Edward Vincent Escasio  
